@@ -36,40 +36,50 @@ async def on_ready():
 	mobile_prefix = f"<@{client.user.id}>"
 
 	print("Bot is running")
-	print(desktop_prefix)
-	print(mobile_prefix)
-
-async def help_command(message):
-	help_reply = 'Usage:\n'
-	help_reply += f'{desktop_prefix} [command] [argument argument argument...]'
-	await message.reply(help_reply)
 
 # returns true if a message is a command, false if it isn't
 async def is_command(message) -> bool:
 	# if the message is not a DM, not from the bot itself (prevents recursion), and starts with a command prefix
 	if message.guild and message.author.id != client.user.id and message.content.startswith(desktop_prefix) or message.content.startswith(mobile_prefix):
-		channel_perms = message.channel.permissions_for(message.guild.me)
-		# if the bot has permission to send messages in the channel of the message
-		if channel_perms.send_messages:
-			# if the message has an actual command (has more than just the prefix token)
-			if len(message.content.split()) > 1:
-				return True
-			# if the message is just @ing the bot with no command
-			else:
-				# reply with the help message and return false
-				await help_command(message)
-				return False
+		# if the message has an actual command (has more than just the prefix token)
+		if len(message.content.split()) > 1:
+			return True
+		# if the message is just @ing the bot with no command
+		else:
+			# reply with the help message and then return false
+			await help_command(message)
 
 	return False
 
 # handles commands
 @client.event
 async def on_message(message):
-	print(message.content)
 	# if the message is not a DM and the message is not from the bot (to prevent recursion)
 	if await is_command(message):
 		command = message.content.split()
 		if command[1].lower() == 'help':
 			await help_command(message)
+
+# makes the bot react to a message with a checkmark emoji if it's able to
+async def react_with_check(message):
+	channel_perms = message.channel.permissions_for(message.guild.me)
+	if channel_perms.add_reactions and message is not None:
+		await message.add_reaction("\u2705")
+
+# makes the bot react to a message with an X emoji if it's able to
+async def react_with_x(message):
+	channel_perms = message.channel.permissions_for(message.guild.me)
+	if channel_perms.add_reactions and message is not None:
+		await message.add_reaction("\u274c")
+
+async def help_command(message):
+	channel_perms = message.channel.permissions_for(message.guild.me)
+	# if the bot has permission to send messages in the channel of the message
+	if channel_perms.send_messages:
+		help_reply = 'Usage:\n'
+		help_reply += f'{desktop_prefix} [command] [argument argument argument...]'
+		await message.reply(help_reply)
+	else:
+		await react_with_x(message)
 
 client.run(token)
