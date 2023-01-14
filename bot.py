@@ -1,3 +1,6 @@
+# required packages for this bot:
+#	pip install discord
+
 # required permissions for the bot:
 #	Send Messages
 #	Send Messages in Threads
