@@ -15,14 +15,41 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+# class for holding time data for weekly meetings
 class WeeklyTime:
+	# constructor
 	def __init__(self, day, hour, minute):
 		self.day = day
 		self.hour = hour
 		self.minute = minute
+		# converts number 0 - 6 to string Monday - Sunday
+		self.day_str = num_to_day(day)
+		self.hour_str_24hr = str(hour)
+		# converts converts 24 hour time number to 12 hour time number
+		self.hour_str_12hr = str(WeeklyTime._to_12hr(hour))
+		# stores am / pm for 12 hour time
+		if hour < 12:
+			self.ampm = 'am'
+		else:
+			self.ampm = 'pm'
+		# makes sure minutes get an extra 0 in front of them if they're only 1 digit
+		if minute < 10:
+			self.minute_str = '0' + str(minute)
+		else:
+			self.minute_str = str(minute)
 	
+	# convert to string
 	def __str__(self):
-		return f'{num_to_day(self.day)}s at {self.hour}:{self.minute}'
+		return f'{self.day_str}s at {self.hour_str_24hr}:{self.minute_str} / {self.hour_str_12hr}:{self.minute_str} {self.ampm}'
+	
+	# takes a 24 hour number and returns a 12 hour number
+	def _to_12hr(hour):
+		if hour > 12:
+			return hour - 12
+		elif hour == 0:
+			return 12
+		else:
+			return hour
 
 # discord bot permissions
 perms = discord.Intents.default()
@@ -268,43 +295,80 @@ def num_to_day(num: int):
 	else:
 		return None
 
-# takes a string of the form hour:minute with a second string of either "am" or "pm" and returns an hour in 24 hour time and a minute
+# takes a string of the form hour:minute or just the hour with a second string of either "am" or "pm" and returns an hour in 24 hour time and a minute
 def str_to_time_12hr(time, ampm):
 	# splits the string into tokens by colons
 	nums = time.split(':')
-	# if both the first and second tokens are numbers
-	if nums[0].isnumeric() and nums[1].isnumeric():
-		# turn the first and second tokens into numbers
-		hour = int(nums[0])
-		minute = int(nums[1])
-		# if the hour is between 1 and 12 and the minute is between 0 and 59
-		if hour > 0 and hour <= 12 and minute >= 0 and minute < 60:
-			# if the time is in pm and the hour is 12, add 12 to it to turn it into 24 hour time
-			if ampm == 'pm' and hour != 12:
-				hour += 12
-			# if the time is in am and the hour is 12, turn the hour to 0 to turn it into 24 hour time
-			elif ampm == 'am' and hour == 12:
-				hour = 0
-			
-			return hour, minute
-	
-	# return none if the input was not valid
-	return None, None
+	# if the time is just the hour with no minute
+	if len(nums) == 1:
+		# if both the token is a number
+		if nums[0].isnumeric():
+			# turn the hour into a number and make the minute 0
+			hour = int(nums[0])
+			minute = 0
+			# if the hour is between 1 and 12
+			if hour > 0 and hour <= 12:
+				# if the time is in pm and the hour is 12, add 12 to it to turn it into 24 hour time
+				if ampm == 'pm' and hour != 12:
+					hour += 12
+				# if the time is in am and the hour is 12, turn the hour to 0 to turn it into 24 hour time
+				elif ampm == 'am' and hour == 12:
+					hour = 0
+				
+				return hour, minute
+		
+		# return none if the input was not valid
+		return None, None
+	# if the time is of the form hour:minute
+	else:
+		# if both the first and second tokens are numbers
+		if nums[0].isnumeric() and nums[1].isnumeric():
+			# turn the first and second tokens into numbers
+			hour = int(nums[0])
+			minute = int(nums[1])
+			# if the hour is between 1 and 12 and the minute is between 0 and 59
+			if hour > 0 and hour <= 12 and minute >= 0 and minute < 60:
+				# if the time is in pm and the hour is 12, add 12 to it to turn it into 24 hour time
+				if ampm == 'pm' and hour != 12:
+					hour += 12
+				# if the time is in am and the hour is 12, turn the hour to 0 to turn it into 24 hour time
+				elif ampm == 'am' and hour == 12:
+					hour = 0
+				
+				return hour, minute
+		
+		# return none if the input was not valid
+		return None, None
 
-# takes a string of the form hour:minute with a second string of either "am" or "pm" and returns an hour in 24 hour time and a minute
+# takes a string of the form hour:minute or just the hour with a second string of either "am" or "pm" and returns an hour in 24 hour time and a minute
 def str_to_time_24hr(time):
 	# splits the string into tokens by colons
 	nums = time.split(':')
-	# if both the first and second tokens are numbers
-	if nums[0].isnumeric() and nums[1].isnumeric():
-		# turn the first and second tokens into numbers
-		hour = int(nums[0])
-		minute = int(nums[1])
-		# if the hour is between 0 and 23 and the minute is between 0 and 59
-		if hour >= 0 and hour < 24 and minute >= 0 and minute < 60:
-			return hour, minute
-	
-	# return none if the input was not valid
-	return None, None
+	# if the time is just the hour with no minute
+	if len(nums) == 1:
+		# if both the token is a number
+		if nums[0].isnumeric():
+			# turn the hour into a number and make the minute 0
+			hour = int(nums[0])
+			minute = 0
+			# if the hour is between 0 and 23
+			if hour >= 0 and hour < 24:
+				return hour, minute
+		
+		# return none if the input was not valid
+		return None, None
+	# if the time is of the form hour:minute
+	else:
+		# if both the first and second tokens are numbers
+		if nums[0].isnumeric() and nums[1].isnumeric():
+			# turn the first and second tokens into numbers
+			hour = int(nums[0])
+			minute = int(nums[1])
+			# if the hour is between 0 and 23 and the minute is between 0 and 59
+			if hour >= 0 and hour < 24 and minute >= 0 and minute < 60:
+				return hour, minute
+		
+		# return none if the input was not valid
+		return None, None
 
 client.run(bot_token)
