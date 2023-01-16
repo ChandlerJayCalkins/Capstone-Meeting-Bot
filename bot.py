@@ -256,7 +256,10 @@ async def on_message(message):
 			command[0] = command[0].lower()
 			# if it's the help command
 			if command[0] == 'help':
-				await help_command(message)
+				if len(command) > 1:
+					await help_command(message, command[1])
+				else:
+					await help_command(message)
 			# if it's the add meeting command
 			elif command[0] == 'add':
 				await add_command(message, command)
@@ -273,13 +276,76 @@ async def on_message(message):
 			await help_command(message)
 
 # handles the help command that displays a message about how to use commands
-async def help_command(message):
+async def help_command(message, command = ''):
 	channel_perms = message.channel.permissions_for(message.guild.me)
 	# if the bot has permission to send messages in the channel of the message
 	if channel_perms.send_messages:
-		help_reply = 'Usage:\n'
-		help_reply += f'{desktop_prefix} [command] [argument argument argument...]'
-		await message.reply(help_reply)
+		command = command.lower()
+		# if info on the help command was requested
+		if command == 'help':
+			# list of string lines that the bot will reply to the help command with
+			help_reply = f'`{command}:` Gives info about the bot and it\'s commands.\n\n'
+
+			help_reply += '```Usages:```\n'
+
+			help_reply += f'**{desktop_prefix} help**\n'
+			help_reply += 'This will print out the default help message that shows how to use the bot and lists all of the bot\'s commands.\n\n'
+
+			help_reply += f'**{desktop_prefix} help [command]**\n'
+			help_reply += 'Gives info on [command].\n'
+
+			help_reply += '\n```Examples:```\n'
+
+			help_reply += f'{desktop_prefix} help\n'
+			help_reply += f'{desktop_prefix} help add\n'
+			help_reply += f'{desktop_prefix} help meetings\n'
+
+			await message.reply(help_reply)
+		# if the info on the add command was requested
+		elif command == 'add':
+			# list of string lines that the bot will reply to the help command with
+			help_reply = f'`{command}:` Adds a meeting or a birthday to the bot so it can remind you about it.\n\n'
+
+			help_reply += '```Usages:```\n'
+
+			help_reply += f'**{desktop_prefix} add meeting on [date] at [time]**\n'
+			help_reply += 'This will add a meeting to the bot, and the bot will remind you about the meeting on [date] a few minutes before [time].\n\n'
+
+			help_reply += f'**{desktop_prefix} add weekly meeting on [day] at [time]**\n'
+			help_reply += 'This will add a meeting to the bot that recurs every week, and the bot will remind you about the meeting on [day] a few minutes before [time].\n\n'
+
+			help_reply += f'**{desktop_prefix} add birthday on [date] for [name]**\n'
+			help_reply += 'This will add a birthday to the bot, and the bot will say happy birthday on [date] to [name].\n\n'
+
+			help_reply += '**Formatting:**\n\n'
+			help_reply += '**[date]:** M/D or M-D (M = month (1 <= M <= 12), D = day (1 <= D <= 31)).\n'
+			help_reply += '**[time]:** H:M or H:M am/pm or H or H am/pm (H = hour (1 <= H <= 12 or 1 <= H <= 24), M = minute (1 <= M <= 59)).\n'
+			help_reply += '**[day]:** Sundays: (su, sun, sunday, sundays), Mondays: (m, mon, monday, mondays), Tuesdays: (tu, tue, tues, tuesday, tuesdays), '
+			help_reply += 'Wednesdays: (w, wed, wednesday, wednesdays), Thursdays: (th, thu, thur, thurs, thursday, thursdays), Fridays: (f, fri, friday, fridays), '
+			help_reply += 'Saturdays: (sa, sat, saturdays, saturdays).\n'
+
+			help_reply += '\n```Examples:```\n'
+
+			help_reply += f'{desktop_prefix} add meeting on 11/15 at 10:30 am\n'
+			help_reply += f'{desktop_prefix} add weekly meeting on tu at 15:30\n'
+			help_reply += f'{desktop_prefix} add birthday on 1/7 for Chandler\n'
+			help_reply += f'{desktop_prefix} add meeting on 9-20 at 4 pm\n'
+			help_reply += f'{desktop_prefix} add weekly meeting on mondays at 18\n'
+			help_reply += f'{desktop_prefix} add birthday on 12-1 for Josh\n'
+
+			await message.reply(help_reply)
+		# if no argument was given or it isn't recognized
+		else:
+			# list of commands that the bot has
+			command_list = ['help', 'add', 'remove', 'meetings']
+			# list of string lines that the bot will reply to the help command with
+			help_reply = f'`Usage:` **{desktop_prefix} [command] [argument argument argument...]**\n\n'
+			help_reply += f'```List of commands:```\n'
+			# add a numbered line for each command the bot has
+			for i in range(len(command_list)):
+				help_reply += f'**{i + 1}. {command_list[i]}**\n'
+			help_reply += f'\nType "{desktop_prefix} help [command]" to get more info on how to use a specific command'
+			await message.reply(help_reply)
 	# if the bot doesn't have permission to send message in the channel, react to the message with an x
 	else:
 		await react_with_x(message)
@@ -292,7 +358,7 @@ async def add_command(message, command):
 		# if the command follows the format "add weekly meeting on *day* at *time*"
 		if len(command) > 6 and command[1].lower() == 'weekly' and command[2].lower() == 'meeting' and command[3].lower() == 'on' and command[5].lower() == 'at':
 			# get a number 0 to 6 of the day of the week
-			day = day_to_num_plural(command[4])
+			day = day_to_num(command[4])
 			# if a valid day of the week was not inputted
 			if day is None:
 				await react_with_x(message)
@@ -395,27 +461,27 @@ async def react_with_x(message):
 # returns whether or not a string is a day of the week
 
 def is_monday(token: str) -> bool:
-	return token.lower() == 'm' or token.lower() == 'mon' or token.lower() == 'monday'
+	return token.lower() == 'm' or token.lower() == 'mon' or token.lower() == 'monday' or token.lower() == 'mondays'
 
 def is_tuesday(token: str) -> bool:
-	return token.lower() == 'tu' or token.lower() == 'tue' or token.lower() == 'tues' or token.lower() == 'tuesday'
+	return token.lower() == 'tu' or token.lower() == 'tue' or token.lower() == 'tues' or token.lower() == 'tuesday' or token.lower() == 'tuesdays'
 
 def is_wednesday(token: str) -> bool:
-	return token.lower() == 'w' or token.lower() == 'wed' or token.lower() == 'wednesday'
+	return token.lower() == 'w' or token.lower() == 'wed' or token.lower() == 'wednesday' or token.lower() == 'wednesdays'
 
 def is_thursday(token: str) -> bool:
-	return token.lower() == 'th' or token.lower() == 'thu' or token.lower() == 'thur' or token.lower() == 'thurs' or token.lower() == 'thursday'
+	return token.lower() == 'th' or token.lower() == 'thu' or token.lower() == 'thur' or token.lower() == 'thurs' or token.lower() == 'thursday' or token.lower() == 'thursdays'
 
 def is_friday(token: str) -> bool:
-	return token.lower() == 'f' or token.lower() == 'fri' or token.lower() == 'friday'
+	return token.lower() == 'f' or token.lower() == 'fri' or token.lower() == 'friday' or token.lower() == 'fridays'
 
 def is_saturday(token: str) -> bool:
-	return token.lower() == 'sa' or token.lower() == 'sat' or token.lower() == 'saturday'
+	return token.lower() == 'sa' or token.lower() == 'sat' or token.lower() == 'saturday' or token.lower() == 'saturdays'
 
 def is_sunday(token: str) -> bool:
-	return token.lower() == 'su' or token.lower() == 'sun' or token.lower() == 'sunday'
+	return token.lower() == 'su' or token.lower() == 'sun' or token.lower() == 'sunday' or token.lower() == 'sundays'
 
-# converts a day monday to sunday to a number 0 to 6
+# converts a string of a day monday to sunday to a number 0 to 6
 def day_to_num(day: str):
 	if is_monday(day):
 		return 0
@@ -430,25 +496,6 @@ def day_to_num(day: str):
 	elif is_saturday(day):
 		return 5
 	elif is_sunday(day):
-		return 6
-	else:
-		return None
-
-# converts a day monday to sunday (including plural days (mondays, wednesdays, etc.)) to a number 0 to 6
-def day_to_num_plural(day: str):
-	if is_monday(day) or day.lower() == 'mondays':
-		return 0
-	elif is_tuesday(day) or day.lower() == 'tuesdays':
-		return 1
-	elif is_wednesday(day) or day.lower() == 'wednesdays':
-		return 2
-	elif is_thursday(day) or day.lower() == 'thursdays':
-		return 3
-	elif is_friday(day) or day.lower() == 'fridays':
-		return 4
-	elif is_saturday(day) or day.lower() == 'saturdays':
-		return 5
-	elif is_sunday(day) or day.lower() == 'sundays':
 		return 6
 	else:
 		return None
