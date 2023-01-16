@@ -302,8 +302,10 @@ async def add_command(message, command):
 			minute = 0
 			# if the command has a "pm" or "am" after the time
 			if len(command) > 7:
+				# extract 12 hour time string into 24 hour time numbers
 				hour, minute = str_to_time_12hr(command[6], command[7])
 			else:
+				# extract 24 hour time string into numbers
 				hour, minute = str_to_time_24hr(command[6])
 			# if a valid time was not inputted
 			if hour is None:
