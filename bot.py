@@ -248,20 +248,29 @@ async def on_message(message):
 	if await is_command(message):
 		# splits the command up into tokens by whitespace
 		command = message.content.split()
-		# turns the first token (command type) into all lowercase so it's easier and faster to check the command type
-		command[1] = command[1].lower()
-		# if it's the help command
-		if command[1] == 'help':
+		# remove the prefix from the command list
+		command.pop(0)
+		# if there is a command
+		if len(command) > 0:
+			# turns the first token (command type) into all lowercase so it's easier and faster to check the command type
+			command[0] = command[0].lower()
+			# if it's the help command
+			if command[0] == 'help':
+				await help_command(message)
+			# if it's the add meeting command
+			elif command[0] == 'add':
+				await add_command(message, command)
+			# if it's the remove meeting command
+			elif command[0] == 'remove':
+				await remove_command(message, command)
+			# if it's the show meetings command
+			elif command[0] == 'meetings':
+				await meetings_command(message)
+			else:
+				await help_command(message)
+		# if the bot was @'d with no command
+		else:
 			await help_command(message)
-		# if it's the add meeting command
-		elif command[1] == 'add':
-			await add_command(message, command)
-		# if it's the remove meeting command
-		elif command[1] == 'remove':
-			await remove_command(message, command)
-		# if it's the show meetings command
-		elif command[1] == 'meetings':
-			await meetings_command(message)
 
 # handles the help command that displays a message about how to use commands
 async def help_command(message):
@@ -281,9 +290,9 @@ async def add_command(message, command):
 	# if the bot has permission to add reactions in this channel
 	if channel_perms.add_reactions:
 		# if the command follows the format "add weekly meeting on *day* at *time*"
-		if len(command) > 7 and command[2].lower() == 'weekly' and command[3].lower() == 'meeting' and command[4].lower() == 'on' and command[6].lower() == 'at':
+		if len(command) > 6 and command[1].lower() == 'weekly' and command[2].lower() == 'meeting' and command[3].lower() == 'on' and command[5].lower() == 'at':
 			# get a number 0 to 6 of the day of the week
-			day = day_to_num_plural(command[5])
+			day = day_to_num_plural(command[4])
 			# if a valid day of the week was not inputted
 			if day is None:
 				await react_with_x(message)
@@ -292,10 +301,10 @@ async def add_command(message, command):
 			hour = 0
 			minute = 0
 			# if the command has a "pm" or "am" after the time
-			if len(command) > 8:
-				hour, minute = str_to_time_12hr(command[7], command[8])
+			if len(command) > 7:
+				hour, minute = str_to_time_12hr(command[6], command[7])
 			else:
-				hour, minute = str_to_time_24hr(command[7])
+				hour, minute = str_to_time_24hr(command[6])
 			# if a valid time was not inputted
 			if hour is None:
 				await react_with_x(message)
@@ -309,10 +318,10 @@ async def add_command(message, command):
 				await react_with_x(message)
 		
 		# if the command follows the format "add meeting on *day* at *time"
-		elif len(command) > 6 and command[2].lower() == 'meeting' and command[3].lower() == 'on' and command[5].lower() == 'at':
+		elif len(command) > 5 and command[1].lower() == 'meeting' and command[2].lower() == 'on' and command[4].lower() == 'at':
 			return
 		# if the command follows the format "add birthday on *day*"
-		elif len(command) > 4 and command[2].lower() == 'birthday' and command[3].lower() == 'on':
+		elif len(command) > 3 and command[1].lower() == 'birthday' and command[2].lower() == 'on':
 			return
 		# if the command isn't recognized
 		else:
@@ -324,10 +333,10 @@ async def remove_command(message, command):
 	# if the bot has permission to add reactions in this channel
 	if channel_perms.add_reactions:
 		# if the command follows the format "remove weekly meeting(s) # # # ..."
-		if len(command) > 4 and command[2].lower() == 'weekly' and (command[3].lower() == 'meeting' or command[3].lower() == 'meetings'):
+		if len(command) > 3 and command[1].lower() == 'weekly' and (command[2].lower() == 'meeting' or command[2].lower() == 'meetings'):
 			meeting_indexes = []
 			# loop through each argument
-			for arg in command[4:]:
+			for arg in command[3:]:
 				# if the argument is a positive integer
 				if arg.isnumeric():
 					# turn the argument into a number
