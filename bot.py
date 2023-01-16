@@ -256,6 +256,9 @@ async def on_message(message):
 		# if it's the add meeting command
 		elif command[1] == 'add':
 			await add_command(message, command)
+		# if it's the remove meeting command
+		elif command[1] == 'remove':
+			await remove_command(message, command)
 		# if it's the show meetings command
 		elif command[1] == 'meetings':
 			await meetings_command(message)
@@ -278,7 +281,7 @@ async def add_command(message, command):
 	# if the bot has permission to add reactions in this channel
 	if channel_perms.add_reactions:
 		# if the command follows the format "add weekly meeting on *day* at *time*"
-		if command[2].lower() == 'weekly' and command[3].lower() == 'meeting' and command[4].lower() == 'on' and command[6].lower() == 'at':
+		if len(command) > 7 and command[2].lower() == 'weekly' and command[3].lower() == 'meeting' and command[4].lower() == 'on' and command[6].lower() == 'at':
 			# get a number 0 to 6 of the day of the week
 			day = day_to_num_plural(command[5])
 			# if a valid day of the week was not inputted
@@ -295,7 +298,7 @@ async def add_command(message, command):
 				hour, minute = str_to_time_24hr(command[7])
 			# if a valid time was not inputted
 			if hour is None:
-				await react_with_x
+				await react_with_x(message)
 				return
 			
 			meeting_time = WeeklyTime(day, hour, minute)
@@ -306,11 +309,51 @@ async def add_command(message, command):
 				await react_with_x(message)
 		
 		# if the command follows the format "add meeting on *day* at *time"
-		elif command[2].lower() == 'meeting' and command[3].lower() == 'on' and command[5].lower() == 'at':
+		elif len(command) > 6 and command[2].lower() == 'meeting' and command[3].lower() == 'on' and command[5].lower() == 'at':
 			return
 		# if the command follows the format "add birthday on *day*"
-		elif command[2].lower() == 'birthday' and command[3].lower() == 'on':
+		elif len(command) > 4 and command[2].lower() == 'birthday' and command[3].lower() == 'on':
 			return
+		# if the command isn't recognized
+		else:
+			await react_with_x(message)
+
+# handles the remove meeting command
+async def remove_command(message, command):
+	channel_perms = message.channel.permissions_for(message.guild.me)
+	# if the bot has permission to add reactions in this channel
+	if channel_perms.add_reactions:
+		# if the command follows the format "remove weekly meeting(s) # # # ..."
+		if len(command) > 4 and command[2].lower() == 'weekly' and (command[3].lower() == 'meeting' or command[3].lower() == 'meetings'):
+			meeting_indexes = []
+			# loop through each argument
+			for arg in command[4:]:
+				# if the argument is a positive integer
+				if arg.isnumeric():
+					# turn the argument into a number
+					index = int(arg)
+					# if the number is between 1 and the last weekly meeting number
+					if index >= 1 and index  <= len(weekly_meetings[message.guild]):
+						# add that number to a list of indexes to remove
+						meeting_indexes.append(index)
+						continue
+				
+				# if any of the arguments aren't valid
+				await react_with_x(message)
+				return
+			
+			# sort the list of indexes in reverse order because the right indexes will change while they're being removed if they're iterated through ascending order
+			meeting_indexes.sort(reverse=True)
+			# remove each meeting from the list in reverse order
+			for i in meeting_indexes:
+				weekly_meetings[message.guild].pop(i - 1)
+				await react_with_check(message)
+		# if the command follows the format "remove meeting(s) # # # ..."
+		elif len(command) > 3 and (command[2].lower() == 'meeting' or command[2].lower() == 'meetings'):
+			return
+		# if the command isn't recognized
+		else:
+			await react_with_x(message)
 
 # handles the meetings command that shows all current meetings
 async def meetings_command(message):
