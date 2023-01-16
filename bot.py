@@ -309,35 +309,88 @@ async def help_command(message, command = ''):
 			help_reply += '```Usages:```\n'
 
 			help_reply += f'**{desktop_prefix} add meeting on [date] at [time]**\n'
-			help_reply += 'This will add a meeting to the bot, and the bot will remind you about the meeting on [date] a few minutes before [time].\n\n'
+			help_reply += 'This will add a meeting to the bot, and the bot will remind you about the meeting on [date] a few minutes before [time].\n'
+			help_reply += 'Note: you cannot add a meeting with the exact same time and date as an already existing meeting.\n\n'
 
 			help_reply += f'**{desktop_prefix} add weekly meeting on [day] at [time]**\n'
-			help_reply += 'This will add a meeting to the bot that recurs every week, and the bot will remind you about the meeting on [day] a few minutes before [time].\n\n'
+			help_reply += 'This will add a meeting to the bot that recurs every week, and the bot will remind you about the meeting on [day] a few minutes before [time].\n'
+			help_reply += 'Note: you cannot add a weekly meeting with the exact same time and day as an already existing weekly meeting.\n\n'
 
-			help_reply += f'**{desktop_prefix} add birthday on [date] for [name]**\n'
-			help_reply += 'This will add a birthday to the bot, and the bot will say happy birthday on [date] to [name].\n\n'
+			help_reply += f'**{desktop_prefix} add bday on [date] for [name]**\n'
+			help_reply += 'This will add a birthday to the bot, and the bot will say happy birthday on [date] to [name].\n'
+			help_reply += 'Note: you cannot add a birthday for a person with the exact same name and date as an already existing birthday.\n\n'
 
 			help_reply += '**Formatting:**\n\n'
 			help_reply += '**[date]:** M/D or M-D (M = month (1 <= M <= 12), D = day (1 <= D <= 31)).\n'
 			help_reply += '**[time]:** H:M or H:M am/pm or H or H am/pm (H = hour (1 <= H <= 12 or 1 <= H <= 24), M = minute (1 <= M <= 59)).\n'
 			help_reply += '**[day]:** Sundays: (su, sun, sunday, sundays), Mondays: (m, mon, monday, mondays), Tuesdays: (tu, tue, tues, tuesday, tuesdays), '
 			help_reply += 'Wednesdays: (w, wed, wednesday, wednesdays), Thursdays: (th, thu, thur, thurs, thursday, thursdays), Fridays: (f, fri, friday, fridays), '
-			help_reply += 'Saturdays: (sa, sat, saturdays, saturdays).\n'
+			help_reply += 'Saturdays: (sa, sat, saturdays, saturdays).\n\n'
 
-			help_reply += '\n```Examples:```\n'
+			help_reply += '```Examples:```\n'
 
 			help_reply += f'{desktop_prefix} add meeting on 11/15 at 10:30 am\n'
 			help_reply += f'{desktop_prefix} add weekly meeting on tu at 15:30\n'
-			help_reply += f'{desktop_prefix} add birthday on 1/7 for Chandler\n'
+			help_reply += f'{desktop_prefix} add bday on 1/7 for Chandler\n'
 			help_reply += f'{desktop_prefix} add meeting on 9-20 at 4 pm\n'
 			help_reply += f'{desktop_prefix} add weekly meeting on mondays at 18\n'
-			help_reply += f'{desktop_prefix} add birthday on 12-1 for Josh\n'
+			help_reply += f'{desktop_prefix} add bday on 12-1 for Josh\n'
+
+			await message.reply(help_reply)
+		# if the info on the remove command was requested
+		elif command == 'remove':
+			# list of string lines that the bot will reply to the help command with
+			help_reply = f'`{command}:` Removes a meeting or a birthday from the bot.\n\n'
+
+			help_reply += '```Usages:```\n'
+
+			help_reply += f'**{desktop_prefix} remove meeting [meeting number(s)]**\n'
+			help_reply += 'This will remove the meeting(s) with the numbers [meeting number(s)].\n'
+			help_reply += 'Note: You can find a meeting\'s number with the "meetings" command (it\'s the number to the left of the meeting).\n\n'
+
+			help_reply += f'**{desktop_prefix} remove meetings [meeting number(s)]**\n'
+			help_reply += 'Same as above.\n\n'
+
+			help_reply += f'**{desktop_prefix} remove weekly meeting [meeting number(s)]**\n'
+			help_reply += 'This will remove the weekly meeting(s) with the numbers [meeting number(s)].\n'
+			help_reply += 'Note: You can find a meeting\'s number with the "meetings" command (it\'s the number to the left of the meeting).\n\n'
+
+			help_reply += f'**{desktop_prefix} remove weekly meetings [meeting number(s)]**\n'
+			help_reply += 'Same as above.\n\n'
+
+			help_reply += f'**{desktop_prefix} remove bday on [date] for [name]**\n'
+			help_reply += 'This will remove a birthday on [date] for the person named [name].\n'
+			help_reply += 'Note: You can see which birthdays have been added with the "bdays" command.\n\n'
+
+			help_reply += '**Formatting:**\n\n'
+			help_reply += '**[date]:** M/D or M-D (M = month (1 <= M <= 12), D = day (1 <= D <= 31)).\n\n'
+
+			help_reply += '```Examples:```\n'
+
+			help_reply += f'{desktop_prefix} remove meeting 1\n'
+			help_reply += f'{desktop_prefix} remove weekly meeting 2 6 4\n'
+			help_reply += f'{desktop_prefix} remove bday on 1/7 for Chandler\n'
+			help_reply += f'{desktop_prefix} remove meetings 7 3 5\n'
+			help_reply += f'{desktop_prefix} remove weekly meetings 8\n'
+			help_reply += f'{desktop_prefix} remove bday on 12-1 for Josh\n'
+
+			await message.reply(help_reply)
+		# if the info on the meetings command was requested
+		elif command == 'meetings':
+			# list of string lines that bot will reply to the help command with
+			help_reply = f'`{command};` Displays all meetings and weekly meetings.\n\n'
+
+			help_reply += '```Usage:```\n'
+
+			help_reply += f'**{desktop_prefix} meetings**\n'
+			help_reply += 'This will display all meetings and weekly meetings that the bot is currently storing along with each meeting\'s removal number.\n'
+			help_reply += 'Note: See how to use the meeting removal numbers in the "remove" command info.'
 
 			await message.reply(help_reply)
 		# if no argument was given or it isn't recognized
 		else:
 			# list of commands that the bot has
-			command_list = ['help', 'add', 'remove', 'meetings']
+			command_list = ['help', 'add', 'remove', 'meetings', 'bdays']
 			# list of string lines that the bot will reply to the help command with
 			help_reply = f'`Usage:` **{desktop_prefix} [command] [argument argument argument...]**\n\n'
 			help_reply += f'```List of commands:```\n'
@@ -437,9 +490,21 @@ async def meetings_command(message):
 	channel_perms = message.channel.permissions_for(message.guild.me)
 	# if the bot has permission to send messages in the channel of the message
 	if channel_perms.send_messages:
-		reply = '```Weekly Meetings```\n'
-		for i in range(len(weekly_meetings[message.guild])):
-			reply += f'**{i+1}. {weekly_meetings[message.guild][i]}**\n\n'
+		reply = '```One-Time Meetings```\n'
+		reply += '**No meetings.**\n'
+
+		reply += '\n'
+
+		reply += '```Weekly Meetings```\n'
+
+		# if there are no weekly meetings
+		if len(weekly_meetings[message.guild]) == 0:
+			reply += '**No weekly meetings.**\n'
+		# if there is at least 1 weekly meeting
+		else:
+			# display all of the weekly meetings in a numbered list
+			for i in range(len(weekly_meetings[message.guild])):
+				reply += f'**{i+1}. {weekly_meetings[message.guild][i]}**\n\n'
 		
 		await message.reply(reply)
 	# if the bot doesn't have permission to send message in the channel, react to the message with an x
