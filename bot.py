@@ -299,9 +299,13 @@ async def add_command(message, command):
 				return
 			
 			# add the meeting time to the server's list of meeting times
-			meeting_time = WeeklyTime(day, hour, minute)
-			weekly_meetings[message.guild].append(meeting_time)
-			await react_with_check(message)
+			try:
+				meeting_time = WeeklyTime(day, hour, minute)
+				add_weekly_meeting(weekly_meetings[message.guild], meeting_time)
+				await react_with_check(message)
+			# if it fails, react with an x
+			except:
+				await react_with_x(message)
 		# if the command follows the format "add meeting on *day* at *time"
 		elif command[2].lower() == 'meeting' and command[3].lower() == 'on' and command[5].lower() == 'at':
 			return
@@ -416,7 +420,7 @@ def num_to_day(num: int):
 		return None
 
 # takes a string of the form hour:minute or just the hour with a second string of either "am" or "pm" and returns an hour in 24 hour time and a minute
-def str_to_time_12hr(time, ampm):
+def str_to_time_12hr(time: str, ampm: str):
 	# splits the string into tokens by colons
 	nums = time.split(':')
 	# if the time is just the hour with no minute
@@ -461,7 +465,7 @@ def str_to_time_12hr(time, ampm):
 		return None, None
 
 # takes a string of the form hour:minute or just the hour with a second string of either "am" or "pm" and returns an hour in 24 hour time and a minute
-def str_to_time_24hr(time):
+def str_to_time_24hr(time: str):
 	# splits the string into tokens by colons
 	nums = time.split(':')
 	# if the time is just the hour with no minute
@@ -490,5 +494,57 @@ def str_to_time_24hr(time):
 		
 		# return none if the input was not valid
 		return None, None
+
+# adds a weekly meeting time to a weekly meeting list in sorted order with a binary search
+# returns true if the meeting was added to the list, false if that time is already in the list
+def add_weekly_meeting(meetings: list, time: WeeklyTime) -> bool:
+	# if the meeting list is empty, just add the meeting to the list
+	if len(meetings) == 0:
+		meetings.append(time)
+	# if there's only 1 item in the list
+	elif len(meetings) == 1:
+		if time < meetings[0]:
+			meetings.insert(0, time)
+		elif time > meetings[0]:
+			meetings.append(time)
+		# if the time is a duplicate
+		else:
+			return False
+	# if the list has at least 2 meetings, do a binary insert
+	else:
+		# start by checking entire list
+		low = 0
+		high = len(meetings) - 1
+		# while there are more than 2 more list items to check
+		while high - low > 1:
+			# get mid point of remaining list to check
+			mid = (high - low) // 2 + low
+			# if the time is less than the mid point, remove the upper half of the remaining list to check
+			if time < meetings[mid]:
+				high = mid - 1
+			# if the time is greater than the mid point, remove the lower half of the remaining list to check
+			elif time > meetings[mid]:
+				low = mid + 1
+			# if the time is a duplicate
+			else:
+				return False
+		
+		# if the time is between the last 2 items
+		if time > meetings[low] and time < meetings[high]:
+			# insert the time between those 2 items
+			meetings.insert(high, time)
+		# if the time is less than the lower last item
+		elif time < meetings[low]:
+			# insert the time in front of that item
+			meetings.insert(low, time)
+		# if the time is greater than the higher last item
+		elif time > meetings[high]:
+			# insert the time after that item
+			meetings.insert(high + 1, time)
+		# if the time is equal to one of those times
+		else:
+			return False
+	
+	return True
 
 client.run(bot_token)
