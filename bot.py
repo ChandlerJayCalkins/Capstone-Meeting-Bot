@@ -358,7 +358,7 @@ async def remove_command(message, command):
 				weekly_meetings[message.guild].pop(i - 1)
 				await react_with_check(message)
 		# if the command follows the format "remove meeting(s) # # # ..."
-		elif len(command) > 3 and (command[2].lower() == 'meeting' or command[2].lower() == 'meetings'):
+		elif len(command) > 3 and (command[1].lower() == 'meeting' or command[1].lower() == 'meetings'):
 			return
 		# if the command isn't recognized
 		else:
