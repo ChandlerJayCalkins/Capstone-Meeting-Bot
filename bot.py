@@ -298,14 +298,13 @@ async def add_command(message, command):
 				await react_with_x
 				return
 			
-			# add the meeting time to the server's list of meeting times
-			try:
-				meeting_time = WeeklyTime(day, hour, minute)
-				add_weekly_meeting(weekly_meetings[message.guild], meeting_time)
+			meeting_time = WeeklyTime(day, hour, minute)
+			# if the meeting time is successfully added to the list in order and is not a duplicate
+			if add_weekly_meeting(weekly_meetings[message.guild], meeting_time):
 				await react_with_check(message)
-			# if it fails, react with an x
-			except:
+			else:
 				await react_with_x(message)
+		
 		# if the command follows the format "add meeting on *day* at *time"
 		elif command[2].lower() == 'meeting' and command[3].lower() == 'on' and command[5].lower() == 'at':
 			return
