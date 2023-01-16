@@ -42,6 +42,126 @@ class WeeklyTime:
 	def __str__(self):
 		return f'{self.day_str}s at {self.hour_str_24hr}:{self.minute_str} / {self.hour_str_12hr}:{self.minute_str} {self.ampm}'
 	
+	# less than < operator overload
+	def __lt__(self, other) -> bool:
+		# these first 2 if statements are to compensate for datetime making 0 be monday and 6 be sunday
+
+		# if the self day is sunday but the other day is not
+		if self.day == 6 and other.day != 6:
+			return True
+		# if the other day is sunday but the self day is not
+		elif other.day == 6 and self.day != 6:
+			return False
+		# if the self day is sooner than the other day
+		elif self.day < other.day:
+			return True
+		# if the self day is later than the other day
+		elif self.day > other.day:
+			return False
+		# if the days are equal
+		else:
+			# if the self hour is sooner than the other hour
+			if self.hour < other.hour:
+				return True
+			# if the self hour is later than the other hour
+			elif self.hour > other.hour:
+				return False
+			# if the hours are equal
+			else:
+				return self.minute < other.minute
+	
+	# greater than > operator overload
+	def __gt__(self, other) -> bool:
+		# these first 2 if statements are to compensate for datetime making 0 be monday and 6 be sunday
+
+		# if the self day is sunday but the other day is not
+		if self.day == 6 and other.day != 6:
+			return False
+		# if the other day is sunday but the self day is not
+		elif other.day == 6 and self.day != 6:
+			return True
+		# if the self day is later than the other day
+		elif self.day > other.day:
+			return True
+		# if the self day is sooner than the other day
+		elif self.day < other.day:
+			return False
+		# if the days are equal
+		else:
+			# if the self hour is later than the other hour
+			if self.hour > other.hour:
+				return True
+			# if the self hour is sooner than the other hour
+			elif self.hour < other.hour:
+				return False
+			# if the hours are equal
+			else:
+				return self.minute > other.minute
+	
+	# less than or equal to <= operator overload
+	def __le__(self, other) -> bool:
+		# these first 2 if statements are to compensate for datetime making 0 be monday and 6 be sunday
+
+		# if the self day is sunday but the other day is not
+		if self.day == 6 and other.day != 6:
+			return True
+		# if the other day is sunday but the self day is not
+		elif other.day == 6 and self.day != 6:
+			return False
+		# if the self day is sooner than the other day
+		elif self.day < other.day:
+			return True
+		# if the self day is later than the other day
+		elif self.day > other.day:
+			return False
+		# if the days are equal
+		else:
+			# if the self hour is sooner than the other hour
+			if self.hour < other.hour:
+				return True
+			# if the self hour is later than the other hour
+			elif self.hour > other.hour:
+				return False
+			# if the hours are equal
+			else:
+				return self.minute <= other.minute
+	
+	# greater than or equal to >= operator overload
+	def __ge__(self, other) -> bool:
+		# these first 2 if statements are to compensate for datetime making 0 be monday and 6 be sunday
+
+		# if the self day is sunday but the other day is not
+		if self.day == 6 and other.day != 6:
+			return False
+		# if the other day is sunday but the self day is not
+		elif other.day == 6 and self.day != 6:
+			return True
+		# if the self day is later than the other day
+		elif self.day > other.day:
+			return True
+		# if the self day is sooner than the other day
+		elif self.day < other.day:
+			return False
+		# if the days are equal
+		else:
+			# if the self hour is later than the other hour
+			if self.hour > other.hour:
+				return True
+			# if the self hour is sooner than the other hour
+			elif self.hour < other.hour:
+				return False
+			# if the hours are equal
+			else:
+				return self.minute >= other.minute
+	
+	# equal to == operator overload
+	def __eq__ (self, other) -> bool:
+		return self.day == other.day and self.hour == other.hour and self.minute == other.minute
+	
+	# not equal to != operator overload
+	def __ne__ (self, other) -> bool:
+		return self.day != other.day or self.hour != other.hour or self.minute != other.minute
+	
 	# takes a 24 hour number and returns a 12 hour number
 	def _to_12hr(hour):
 		if hour > 12:
