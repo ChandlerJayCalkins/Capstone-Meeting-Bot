@@ -753,7 +753,15 @@ async def meetings_command(message):
 		else:
 			# display all of the meetings in a numbered list
 			for i in range(len(meetings[message.guild])):
-				reply += f'**{i+1}. {meetings[message.guild][i]}**\n\n'
+				# Why the actual fuck would you change the grammar of a damn language depending on the operating system
+				# What. The. Fuck.
+				# Who is responsible for making this function and how the fuck were they allowed to contribute to python in the first place
+				# What else have they fucked up with this language
+				# Linux version
+				# meeting_str = meetings[message.guild][i].strftime('%A %b %-d %Y at %-H:%M / %-I:%M %p')
+				# Windows version
+				meeting_str = meetings[message.guild][i].strftime('%A %b %#d %Y at %#H:%M / %#I:%M %p')
+				reply += f'**{i+1}. {meeting_str}**\n\n'
 
 		reply += '```Weekly Meetings```\n'
 
