@@ -15,6 +15,12 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+########################################################################################################################
+#
+# class definitions
+#
+########################################################################################################################
+
 # class for holding time data for weekly meetings
 class WeeklyTime:
 	# constructor
@@ -171,6 +177,12 @@ class WeeklyTime:
 		else:
 			return hour
 
+########################################################################################################################
+#
+# startup instructions
+#
+########################################################################################################################
+
 # discord bot permissions
 perms = discord.Intents.default()
 perms.message_content = True
@@ -227,6 +239,12 @@ def startup_server(server):
 async def on_guild_join(server):
 	startup_server(server)
 
+########################################################################################################################
+#
+# command detection
+#
+########################################################################################################################
+
 # returns true if a message is a command, false if it isn't
 async def is_command(message) -> bool:
 	# if the message is not a DM, not from the bot itself (prevents recursion), and starts with a command prefix
@@ -274,6 +292,12 @@ async def on_message(message):
 		# if the bot was @'d with no command
 		else:
 			await help_command(message)
+
+########################################################################################################################
+#
+# command handling
+#
+########################################################################################################################
 
 # handles the help command that displays a message about how to use commands
 async def help_command(message, command = ''):
@@ -510,6 +534,12 @@ async def meetings_command(message):
 	# if the bot doesn't have permission to send message in the channel, react to the message with an x
 	else:
 		await react_with_x(message)
+
+########################################################################################################################
+#
+# utility functions
+#
+########################################################################################################################
 
 # makes the bot react to a message with a checkmark emoji if it's able to
 async def react_with_check(message):
