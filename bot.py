@@ -516,29 +516,37 @@ async def help_command(message, command = ''):
 
 			help_reply += '```Usages:```\n'
 
-			help_reply += f'**{desktop_prefix} set agenda order as [name] [name] [name] ...**\n'
+			help_reply += f'**{desktop_prefix} set agenda order as [name], [name], [name], ...**\n'
 			help_reply += 'This will set the agenda notetaking order as the list of names at the end of the command.\n'
 			help_reply += 'It will also reset the agenda notetaking list to start at the first name in this command and work it\'s way down.\n'
 			help_reply += 'Every time there is a meeting, the bot will remind you whose turn it is on agenda, and after the meeting has started '
 			help_reply += 'it will move onto the next person in the list for the next meeting.\n'
 			help_reply += 'Note: See the current agenda order in the "noteorder" command info.\n\n'
 
-			help_reply += f'**{desktop_prefix} set minutes order as [name] [name] [name] ...**\n'
+			help_reply += f'**{desktop_prefix} set minutes order as [name], [name], [name], ...**\n'
 			help_reply += 'This will set the meeting minutes notetaking order as the list of names at the end of the command.\n'
 			help_reply += 'It will also reset the meeting minutes notetaking list to start at the first name in this command and work it\'s way down.\n'
 			help_reply += 'Every time there is a meeting, the bot will remind you whose turn it is on minutes, and after the meeting has started '
-			help_reply += 'it will move onto the next person in the list for the next meeting.\n\n'
+			help_reply += 'it will move onto the next person in the list for the next meeting.\n'
+			help_reply += 'Note: See the current meeting minutes order in the "noteorder" command info.\n\n'
+
+			help_reply += f'**{desktop_prefix} set agenda to [name]**\n'
+			help_reply += 'This will set the next person from the agenda list on agenda notetaking duty to [name].\n'
+			help_reply += 'Note: See the current agenda order in the "noteorder" command info.\n\n'
+
+			help_reply += f'**{desktop_prefix} set minutes to [name]**\n'
+			help_reply += 'This will set the next person from the minutes list on meeting minutes notetaking duty to [name].\n'
 			help_reply += 'Note: See the current meeting minutes order in the "noteorder" command info.\n\n'
 
 			help_reply += '**Formatting:**\n\n'
-			help_reply += 'Names can only be 1 word / token long.\n'
-			help_reply += '1 word / token is defined as a string of text with no whitespace inside.\n'
-			help_reply += 'Ex: "Big Slime" is 2 tokens, but "BigSlime" is only 1 token because it has no whitespace inside.\n\n'
+			help_reply += 'Multiple names must be separated by commas.\n'
 
 			help_reply += '```Examples:```\n'
 
 			help_reply += f'{desktop_prefix} set agenda order as Chandler Glen Holly\n'
-			help_reply += f'{desktop_prefix} set minutes order as Grant David Tyler'
+			help_reply += f'{desktop_prefix} set minutes order as Grant David Tyler\n'
+			help_reply += f'{desktop_prefix} set agenda to Glen\n'
+			help_reply += f'{desktop_prefix} set minutes to Tyler\n'
 
 			await safe_reply(message, help_reply)
 		# if the info on the noteorder command was requested
