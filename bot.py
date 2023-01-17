@@ -198,7 +198,12 @@ with open('token.txt', 'r') as file:
 desktop_prefix = ""
 mobile_prefix = ""
 
-# used for keeping track of weekly meetings for a server
+# used for keeping track of one-time meetings for each server
+# maps a discord server / guild to a list of datetime objects
+meetings = {}
+
+# used for keeping track of weekly meetings for each server
+# maps a discord server / guild to a list of WeeklyTime objects
 weekly_meetings = {}
 
 # called as soon as the bot is fully online and operational
@@ -232,6 +237,9 @@ def startup_server(server):
 	if not os.path.isfile(meetings_file):
 		Path(meetings_file).touch()
 	
+	# set the lists of meetings for this server to an empty list
+	# TODO: make it so these read from a file that store the meetings to initialize the lists instead
+	meetings[server] = []
 	weekly_meetings[server] = []
 
 # sets up the bot for a new server every time it joins one while running
@@ -515,7 +523,15 @@ async def meetings_command(message):
 	# if the bot has permission to send messages in the channel of the message
 	if channel_perms.send_messages:
 		reply = '```One-Time Meetings```\n'
-		reply += '**No meetings.**\n'
+		
+		# if there are no one time meetings
+		if len(meetings[message.guild]) == 0:
+			reply += '**No meetings.**\n'
+		# if there is at least 1 meeting
+		else:
+			# display all of the meetings in a numbered list
+			for i in range(len(meetings[message.guild])):
+				reply += f'**{i+1}. {meetings[message.guild][i]}**\n\n'
 
 		reply += '\n'
 
