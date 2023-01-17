@@ -757,9 +757,9 @@ async def meetings_command(message):
 				# What. The. Fuck.
 				# Who is responsible for making this function and how the fuck were they allowed to contribute to python in the first place
 				# What else have they fucked up with this language
-				# Linux version
+				# Linux version:
 				# meeting_str = meetings[message.guild][i].strftime('%A %b %-d %Y at %-H:%M / %-I:%M %p')
-				# Windows version
+				# Windows version:
 				meeting_str = meetings[message.guild][i].strftime('%A %b %#d %Y at %#H:%M / %#I:%M %p')
 				reply += f'**{i+1}. {meeting_str}**\n\n'
 
