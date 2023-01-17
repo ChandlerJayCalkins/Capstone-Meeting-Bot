@@ -421,7 +421,7 @@ async def help_command(message, command = ''):
 			help_reply += f'{desktop_prefix} help add\n'
 			help_reply += f'{desktop_prefix} help meetings\n'
 
-			await message.reply(help_reply)
+			await safe_reply(message, help_reply)
 		# if the info on the add command was requested
 		elif command == 'add':
 			# list of string lines that the bot will reply to the help command with
@@ -457,7 +457,7 @@ async def help_command(message, command = ''):
 			help_reply += f'{desktop_prefix} add weekly meeting on mondays at 18\n'
 			help_reply += f'{desktop_prefix} add bday on 12-1 for Josh\n'
 
-			await message.reply(help_reply)
+			await safe_reply(message, help_reply)
 		# if the info on the remove command was requested
 		elif command == 'remove':
 			# list of string lines that the bot will reply to the help command with
@@ -495,7 +495,7 @@ async def help_command(message, command = ''):
 			help_reply += f'{desktop_prefix} remove weekly meetings 8\n'
 			help_reply += f'{desktop_prefix} remove bday on 12-1 for Josh\n'
 
-			await message.reply(help_reply)
+			await safe_reply(message, help_reply)
 		# if the info on the meetings command was requested
 		elif command == 'meetings':
 			# list of string lines that bot will reply to the help command with
@@ -507,7 +507,7 @@ async def help_command(message, command = ''):
 			help_reply += 'This will display all meetings and weekly meetings that the bot is currently storing along with each meeting\'s removal number.\n'
 			help_reply += 'Note: See how to use the meeting removal numbers in the "remove" command info.'
 
-			await message.reply(help_reply)
+			await safe_reply(message, help_reply)
 		# if no argument was given or it isn't recognized
 		else:
 			# list of commands that the bot has
@@ -519,7 +519,7 @@ async def help_command(message, command = ''):
 			for i in range(len(command_list)):
 				help_reply += f'**{i + 1}. {command_list[i]}**\n'
 			help_reply += f'\nType "{desktop_prefix} help [command]" to get more info on how to use a specific command'
-			await message.reply(help_reply)
+			await safe_reply(message, help_reply)
 	# if the bot doesn't have permission to send message in the channel, react to the message with an x
 	else:
 		await react_with_x(message)
@@ -635,14 +635,14 @@ async def meetings_command(message):
 			for i in range(len(weekly_meetings[message.guild])):
 				reply += f'**{i+1}. {weekly_meetings[message.guild][i]}**\n\n'
 		
-		await message.reply(reply)
+		await safe_reply(message, reply)
 	# if the bot doesn't have permission to send message in the channel, react to the message with an x
 	else:
 		await react_with_x(message)
 
 ########################################################################################################################
 #
-# command functions
+# command utility functions
 #
 ########################################################################################################################
 
@@ -657,6 +657,51 @@ async def react_with_x(message):
 	channel_perms = message.channel.permissions_for(message.guild.me)
 	if channel_perms.add_reactions and message is not None:
 		await message.add_reaction("\u274c")
+
+# replies to a message and handles lack of permissions and character overflow
+async def safe_reply(message, reply: str):
+	channel_perms = message.channel.permissions_for(message.guild.me)
+	# if the bot has permission to send messages in the channel of the message
+	if channel_perms.send_messages:
+		max_message_len = 2000
+		# while the reply is too long to send, find a split point before the message limit and send the reply up to that point
+		while (len(reply) > max_message_len):
+			# strings to split the reply at before the message limit
+			split_strs = ['\n\n', '\n', ' ']
+			# index of where the reply will be split
+			split_index = -1
+			# loop through each substring to get the index of the last instance of one of the strings in split_strs in the relpy before the max message length
+			for i in range(len(split_strs) + 1):
+				# if all of the strings in split_strs have been checked and none of them were found, set the split_index to the max message length
+				if i == len(split_strs):
+					split_index = max_message_len + 1
+				else:
+					# find the index of the last instance of a string in split_strs
+					split_index = reply.rfind(split_strs[i], 0, max_message_len)
+					# if an instance of the string was found, use the index of that string as the split index
+					if split_index != -1:
+						split_index += 1
+						break
+			
+			channel_perms = message.channel.permissions_for(message.guild.me)
+			# check to make sure the bot still has permission to send messages in this channel
+			if channel_perms.send_messages:
+				# send the part of the reply up to the split index
+				await message.reply(reply[:split_index])
+			# if it doesn't, then stop and return
+			else:
+				return
+			# remove the part of the reply that was just sent
+			reply = reply[split_index:]
+		
+		channel_perms = message.channel.permissions_for(message.guild.me)
+		# check to make sure the bot still has permission to send messages in this channel
+		if channel_perms.send_messages:
+			# send the remaining part of the reply that is less than the max message length
+			await message.reply(reply)
+	# if the bot doesn't have permission to send messages in the channel of the message, react with an x
+	else:
+		await react_with_x(message)
 
 # returns whether or not a string is a day of the week
 
