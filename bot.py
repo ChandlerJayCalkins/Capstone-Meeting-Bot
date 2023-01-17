@@ -505,20 +505,76 @@ async def help_command(message, command = ''):
 
 			help_reply += f'**{desktop_prefix} meetings**\n'
 			help_reply += 'This will display all meetings and weekly meetings that the bot is currently storing along with each meeting\'s removal number.\n'
-			help_reply += 'Note: See how to use the meeting removal numbers in the "remove" command info.'
+			help_reply += 'Note: See how to use the meeting removal numbers and remove meetings in the "remove" command info, as well as how to add '
+			help_reply += 'meetings in the "add" command info.'
 
 			await safe_reply(message, help_reply)
+		# if the info on the set command was requested
+		elif command == 'set':
+			# list of string lines that the bot will reply to the help command with
+			help_reply = f'`{command}:` Sets the agenda or meeting minutes notetaking order.\n\n'
+
+			help_reply += '```Usages:```\n'
+
+			help_reply += f'**{desktop_prefix} set agenda order as [name] [name] [name] ...**\n'
+			help_reply += 'This will set the agenda notetaking order as the list of names at the end of the command.\n'
+			help_reply += 'It will also reset the agenda notetaking list to start at the first name in this command and work it\'s way down.\n'
+			help_reply += 'Every time there is a meeting, the bot will remind you whose turn it is on agenda, and after the meeting has started '
+			help_reply += 'it will move onto the next person in the list for the next meeting.\n'
+			help_reply += 'Note: See the current agenda order in the "noteorder" command info.\n\n'
+
+			help_reply += f'**{desktop_prefix} set minutes order as [name] [name] [name] ...**\n'
+			help_reply += 'This will set the meeting minutes notetaking order as the list of names at the end of the command.\n'
+			help_reply += 'It will also reset the meeting minutes notetaking list to start at the first name in this command and work it\'s way down.\n'
+			help_reply += 'Every time there is a meeting, the bot will remind you whose turn it is on minutes, and after the meeting has started '
+			help_reply += 'it will move onto the next person in the list for the next meeting.\n\n'
+			help_reply += 'Note: See the current meeting minutes order in the "noteorder" command info.\n\n'
+
+			help_reply += '**Formatting:**\n\n'
+			help_reply += 'Names can only be 1 word / token long.\n'
+			help_reply += '1 word / token is defined as a string of text with no whitespace inside.\n'
+			help_reply += 'Ex: "Big Slime" is 2 tokens, but "BigSlime" is only 1 token because it has no whitespace inside.\n\n'
+
+			help_reply += '```Examples:```\n'
+
+			help_reply += f'{desktop_prefix} set agenda order as Chandler Glen Holly\n'
+			help_reply += f'{desktop_prefix} set minutes order as Grant David Tyler'
+
+			await safe_reply(message, help_reply)
+		# if the info on the noteorder command was requested
+		elif command == 'noteorder':
+			# list of string lines that the bot will reply to the help command with
+			help_reply = f'`{command}:` Displays the current agenda a meeting minutes notetaking order.\n\n'
+
+			help_reply += '```Usage:```\n'
+
+			help_reply += f'**{desktop_prefix} noteorder**\n'
+			help_reply += 'This will display the current agenda and meeting minutes notetaking order, as well as who\'s next on each list.\n'
+			help_reply += 'Note: See how to set the agenda and minutes orders in the "set" command info.'
+
+			await safe_reply(message, help_reply)
+		# if the info on the bdays command was requested
+		elif command == 'bdays':
+			# list of string lines that the bot will reply to the help command with
+			help_reply = f'`{command}:` Displays all birthdays the bot is currently keeping track of.\n\n'
+
+			help_reply += '```Usage:```\n'
+
+			help_reply += f'**{desktop_prefix} bdays**\n'
+			help_reply += 'This will display all birthdays that the bot is currently keeping track of to say happy birthday to.\n'
+			help_reply += 'Note: See how to add and remove birthdays in the "add" and "remove" command infos.'
 		# if no argument was given or it isn't recognized
 		else:
 			# list of commands that the bot has
-			command_list = ['help', 'add', 'remove', 'meetings', 'bdays']
+			command_list = ['help', 'add', 'remove', 'meetings', 'set', 'noteorder', 'bdays']
 			# list of string lines that the bot will reply to the help command with
 			help_reply = f'`Usage:` **{desktop_prefix} [command] [argument argument argument...]**\n\n'
+			help_reply += f'Type "{desktop_prefix} help [command]" to get more info on how to use a specific command.\n\n'
 			help_reply += f'```List of commands:```\n'
 			# add a numbered line for each command the bot has
 			for i in range(len(command_list)):
 				help_reply += f'**{i + 1}. {command_list[i]}**\n'
-			help_reply += f'\nType "{desktop_prefix} help [command]" to get more info on how to use a specific command'
+			
 			await safe_reply(message, help_reply)
 	# if the bot doesn't have permission to send message in the channel, react to the message with an x
 	else:
