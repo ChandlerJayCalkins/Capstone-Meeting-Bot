@@ -563,6 +563,8 @@ async def help_command(message, command = ''):
 			help_reply += f'**{desktop_prefix} bdays**\n'
 			help_reply += 'This will display all birthdays that the bot is currently keeping track of to say happy birthday to.\n'
 			help_reply += 'Note: See how to add and remove birthdays in the "add" and "remove" command infos.'
+
+			await safe_reply(message, help_reply)
 		# if no argument was given or it isn't recognized
 		else:
 			# list of commands that the bot has
