@@ -756,7 +756,7 @@ async def meetings_command(message):
 				# Why the actual fuck would you change the grammar of a damn language depending on the operating system
 				# What. The. Fuck.
 				# Who is responsible for making this function and how the fuck were they allowed to contribute to python in the first place
-				# What else have they fucked up with this language
+				# What else has this individual / these individuals fucked up with this language
 				# Linux version:
 				# meeting_str = meetings[message.guild][i].strftime('%A %b %-d %Y at %-H:%M / %-I:%M %p')
 				# Windows version:
