@@ -222,12 +222,18 @@ async def on_ready():
 
 	# sets up and starts running the bot for each server it's in
 	for server in client.guilds:
-		startup_server(server)
+		await startup_server(server)
 
 	print("Bot is running")
 
+########################################################################################################################
+#
+# server data handling
+#
+########################################################################################################################
+
 # sets up all of the data for a server when it joins one or the bot starts running
-def startup_server(server):
+async def startup_server(server):
 	# create necessary directories and folders if they don't already exist
 
 	# gets the path to the server's data folder
@@ -252,7 +258,7 @@ def startup_server(server):
 # sets up the bot for a new server every time it joins one while running
 @client.event
 async def on_guild_join(server):
-	startup_server(server)
+	await startup_server(server)
 
 # removes all of a server's data when the bot leaves a server
 @client.event
@@ -265,6 +271,70 @@ async def on_guild_remove(server):
 	server_folder = get_server_folder_name(server)
 	# deletes the folder and all files in it
 	shutil.rmtree(server_folder)
+
+# returns the path to a server's data folder
+def get_server_folder_name(server) -> str:
+	# get server's name up to 128 chars
+	server_name = server.name[:128]
+	# turn all illegal filename chars in the name to underscores
+	illegal_chars = ['#', '%', '&', '{', '}', '\\', '<', '>', '*', '?', '/', ' ', '$', '!', '\'', '"', ':', '@', '+', '`', '|', '=']
+	for c in illegal_chars:
+		server_name = server_name.replace(c, '_')
+	# server's data folder path
+	server_folder = f'{server_root}/{server.id}-{server_name}'
+	return server_folder
+
+# adds a weekly meeting time to a weekly meeting list in sorted order with a binary search
+# returns true if the meeting was added to the list, false if that time is already in the list
+def add_weekly_meeting(meetings: list, time: WeeklyTime) -> bool:
+	# if the meeting list is empty, just add the meeting to the list
+	if len(meetings) == 0:
+		meetings.append(time)
+	# if there's only 1 item in the list
+	elif len(meetings) == 1:
+		if time < meetings[0]:
+			meetings.insert(0, time)
+		elif time > meetings[0]:
+			meetings.append(time)
+		# if the time is a duplicate
+		else:
+			return False
+	# if the list has at least 2 meetings, do a binary insert
+	else:
+		# start by checking entire list
+		low = 0
+		high = len(meetings) - 1
+		# while there are more than 2 more list items to check
+		while high - low > 1:
+			# get mid point of remaining list to check
+			mid = (high - low) // 2 + low
+			# if the time is less than the mid point, remove the upper half of the remaining list to check
+			if time < meetings[mid]:
+				high = mid - 1
+			# if the time is greater than the mid point, remove the lower half of the remaining list to check
+			elif time > meetings[mid]:
+				low = mid + 1
+			# if the time is a duplicate
+			else:
+				return False
+		
+		# if the time is between the last 2 items
+		if time > meetings[low] and time < meetings[high]:
+			# insert the time between those 2 items
+			meetings.insert(high, time)
+		# if the time is less than the lower last item
+		elif time < meetings[low]:
+			# insert the time in front of that item
+			meetings.insert(low, time)
+		# if the time is greater than the higher last item
+		elif time > meetings[high]:
+			# insert the time after that item
+			meetings.insert(high + 1, time)
+		# if the time is equal to one of those times
+		else:
+			return False
+	
+	return True
 
 ########################################################################################################################
 #
@@ -572,7 +642,7 @@ async def meetings_command(message):
 
 ########################################################################################################################
 #
-# utility functions
+# command functions
 #
 ########################################################################################################################
 
@@ -587,18 +657,6 @@ async def react_with_x(message):
 	channel_perms = message.channel.permissions_for(message.guild.me)
 	if channel_perms.add_reactions and message is not None:
 		await message.add_reaction("\u274c")
-
-# returns the path to a server's data folder
-def get_server_folder_name(server) -> str:
-	# get server's name up to 128 chars
-	server_name = server.name[:128]
-	# turn all illegal filename chars in the name to underscores
-	illegal_chars = ['#', '%', '&', '{', '}', '\\', '<', '>', '*', '?', '/', ' ', '$', '!', '\'', '"', ':', '@', '+', '`', '|', '=']
-	for c in illegal_chars:
-		server_name = server_name.replace(c, '_')
-	# server's data folder path
-	server_folder = f'{server_root}/{server.id}-{server_name}'
-	return server_folder
 
 # returns whether or not a string is a day of the week
 
@@ -737,56 +795,10 @@ def str_to_time_24hr(time: str):
 		# return none if the input was not valid
 		return None, None
 
-# adds a weekly meeting time to a weekly meeting list in sorted order with a binary search
-# returns true if the meeting was added to the list, false if that time is already in the list
-def add_weekly_meeting(meetings: list, time: WeeklyTime) -> bool:
-	# if the meeting list is empty, just add the meeting to the list
-	if len(meetings) == 0:
-		meetings.append(time)
-	# if there's only 1 item in the list
-	elif len(meetings) == 1:
-		if time < meetings[0]:
-			meetings.insert(0, time)
-		elif time > meetings[0]:
-			meetings.append(time)
-		# if the time is a duplicate
-		else:
-			return False
-	# if the list has at least 2 meetings, do a binary insert
-	else:
-		# start by checking entire list
-		low = 0
-		high = len(meetings) - 1
-		# while there are more than 2 more list items to check
-		while high - low > 1:
-			# get mid point of remaining list to check
-			mid = (high - low) // 2 + low
-			# if the time is less than the mid point, remove the upper half of the remaining list to check
-			if time < meetings[mid]:
-				high = mid - 1
-			# if the time is greater than the mid point, remove the lower half of the remaining list to check
-			elif time > meetings[mid]:
-				low = mid + 1
-			# if the time is a duplicate
-			else:
-				return False
-		
-		# if the time is between the last 2 items
-		if time > meetings[low] and time < meetings[high]:
-			# insert the time between those 2 items
-			meetings.insert(high, time)
-		# if the time is less than the lower last item
-		elif time < meetings[low]:
-			# insert the time in front of that item
-			meetings.insert(low, time)
-		# if the time is greater than the higher last item
-		elif time > meetings[high]:
-			# insert the time after that item
-			meetings.insert(high + 1, time)
-		# if the time is equal to one of those times
-		else:
-			return False
-	
-	return True
+########################################################################################################################
+#
+# bot activation
+#
+########################################################################################################################
 
 client.run(bot_token)
