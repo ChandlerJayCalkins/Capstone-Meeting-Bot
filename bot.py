@@ -51,16 +51,8 @@ class WeeklyTime:
 	
 	# less than < operator overload
 	def __lt__(self, other) -> bool:
-		# these first 2 if statements are to compensate for datetime making 0 be monday and 6 be sunday
-
-		# if the self day is sunday but the other day is not
-		if self.day == 6 and other.day != 6:
-			return True
-		# if the other day is sunday but the self day is not
-		elif other.day == 6 and self.day != 6:
-			return False
 		# if the self day is sooner than the other day
-		elif self.day < other.day:
+		if self.day < other.day:
 			return True
 		# if the self day is later than the other day
 		elif self.day > other.day:
@@ -79,16 +71,8 @@ class WeeklyTime:
 	
 	# greater than > operator overload
 	def __gt__(self, other) -> bool:
-		# these first 2 if statements are to compensate for datetime making 0 be monday and 6 be sunday
-
-		# if the self day is sunday but the other day is not
-		if self.day == 6 and other.day != 6:
-			return False
-		# if the other day is sunday but the self day is not
-		elif other.day == 6 and self.day != 6:
-			return True
 		# if the self day is later than the other day
-		elif self.day > other.day:
+		if self.day > other.day:
 			return True
 		# if the self day is sooner than the other day
 		elif self.day < other.day:
@@ -107,16 +91,8 @@ class WeeklyTime:
 	
 	# less than or equal to <= operator overload
 	def __le__(self, other) -> bool:
-		# these first 2 if statements are to compensate for datetime making 0 be monday and 6 be sunday
-
-		# if the self day is sunday but the other day is not
-		if self.day == 6 and other.day != 6:
-			return True
-		# if the other day is sunday but the self day is not
-		elif other.day == 6 and self.day != 6:
-			return False
 		# if the self day is sooner than the other day
-		elif self.day < other.day:
+		if self.day < other.day:
 			return True
 		# if the self day is later than the other day
 		elif self.day > other.day:
@@ -135,16 +111,8 @@ class WeeklyTime:
 	
 	# greater than or equal to >= operator overload
 	def __ge__(self, other) -> bool:
-		# these first 2 if statements are to compensate for datetime making 0 be monday and 6 be sunday
-
-		# if the self day is sunday but the other day is not
-		if self.day == 6 and other.day != 6:
-			return False
-		# if the other day is sunday but the self day is not
-		elif other.day == 6 and self.day != 6:
-			return True
 		# if the self day is later than the other day
-		elif self.day > other.day:
+		if self.day > other.day:
 			return True
 		# if the self day is sooner than the other day
 		elif self.day < other.day:
@@ -771,6 +739,9 @@ async def safe_reply(message, reply: str):
 
 # returns whether or not a string is a day of the week
 
+def is_sunday(token: str) -> bool:
+	return token.lower() == 'su' or token.lower() == 'sun' or token.lower() == 'sunday' or token.lower() == 'sundays'
+
 def is_monday(token: str) -> bool:
 	return token.lower() == 'm' or token.lower() == 'mon' or token.lower() == 'monday' or token.lower() == 'mondays'
 
@@ -789,44 +760,41 @@ def is_friday(token: str) -> bool:
 def is_saturday(token: str) -> bool:
 	return token.lower() == 'sa' or token.lower() == 'sat' or token.lower() == 'saturday' or token.lower() == 'saturdays'
 
-def is_sunday(token: str) -> bool:
-	return token.lower() == 'su' or token.lower() == 'sun' or token.lower() == 'sunday' or token.lower() == 'sundays'
-
-# converts a string of a day monday to sunday to a number 0 to 6
+# converts a string of a day sunday to saturday to a number 0 to 6
 def day_to_num(day: str):
-	if is_monday(day):
+	if is_sunday(day):
 		return 0
-	elif is_tuesday(day):
+	elif is_monday(day):
 		return 1
-	elif is_wednesday(day):
+	elif is_tuesday(day):
 		return 2
-	elif is_thursday(day):
+	elif is_wednesday(day):
 		return 3
-	elif is_friday(day):
+	elif is_thursday(day):
 		return 4
-	elif is_saturday(day):
+	elif is_friday(day):
 		return 5
-	elif is_sunday(day):
+	elif is_saturday(day):
 		return 6
 	else:
 		return None
 
-# converts a number 0 to 6 to a day of the week monday to sunday
+# converts a number 0 to 6 to a day of the week sunday to saturday
 def num_to_day(num: int):
 	if num == 0:
-		return 'Monday'
-	elif num == 1:
-		return 'Tuesday'
-	elif num == 2:
-		return 'Wednesday'
-	elif num == 3:
-		return 'Thursday'
-	elif num == 4:
-		return 'Friday'
-	elif num == 5:
-		return 'Saturday'
-	elif num == 6:
 		return 'Sunday'
+	elif num == 1:
+		return 'Monday'
+	elif num == 2:
+		return 'Tuesday'
+	elif num == 3:
+		return 'Wednesday'
+	elif num == 4:
+		return 'Thursday'
+	elif num == 5:
+		return 'Friday'
+	elif num == 6:
+		return 'Saturday'
 	else:
 		return None
 
