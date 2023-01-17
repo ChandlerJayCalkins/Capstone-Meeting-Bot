@@ -13,7 +13,7 @@
 import discord
 import os
 import shutil
-from datetime import datetime
+import datetime
 from pathlib import Path
 
 ########################################################################################################################
@@ -254,7 +254,7 @@ def get_server_folder_name(server) -> str:
 
 # adds a weekly meeting time to a weekly meeting list in sorted order with a binary search
 # returns true if the meeting was added to the list, false if that time is already in the list
-def add_weekly_meeting(meetings: list, time: WeeklyTime) -> bool:
+def add_meeting(meetings: list, time) -> bool:
 	# if the meeting list is empty, just add the meeting to the list
 	if len(meetings) == 0:
 		meetings.append(time)
@@ -301,6 +301,33 @@ def add_weekly_meeting(meetings: list, time: WeeklyTime) -> bool:
 		# if the time is equal to one of those times
 		else:
 			return False
+	
+	return True
+
+# removes meetings from a list of meetings given a list of arguments of the meetings' numbers
+# returns true if all of the meetings were successfully removed, returns false if one of the meeting numbers wasn't valid
+def remove_meetings(meetings: list, meeting_numbers: list) -> bool:
+	meeting_indexes = []
+	# loop through each argument
+	for arg in meeting_numbers:
+		# if the argument is a positive integer
+		if arg.isnumeric():
+			# turn the argument into a number
+			index = int(arg)
+			# if the number is between 1 and the last weekly meeting number
+			if index >= 1 and index  <= len(meetings):
+				# add that number to a list of indexes to remove
+				meeting_indexes.append(index)
+				continue
+		
+		# if any of the arguments aren't valid
+		return False
+	
+	# sort the list of indexes in reverse order because the right indexes will change while they're being removed if they're iterated through ascending order
+	meeting_indexes.sort(reverse=True)
+	# remove each meeting from the list in reverse order
+	for i in meeting_indexes:
+		meetings.pop(i - 1)
 	
 	return True
 
@@ -387,7 +414,7 @@ async def help_command(message, command = ''):
 
 			help_reply += f'{desktop_prefix} help\n'
 			help_reply += f'{desktop_prefix} help add\n'
-			help_reply += f'{desktop_prefix} help meetings\n'
+			help_reply += f'{desktop_prefix} help meetings'
 
 			await safe_reply(message, help_reply)
 		# if the info on the add command was requested
@@ -410,7 +437,8 @@ async def help_command(message, command = ''):
 			help_reply += 'Note: you cannot add a birthday for a person with the exact same name and date as an already existing birthday.\n\n'
 
 			help_reply += '**Formatting:**\n\n'
-			help_reply += '**[date]:** M/D or M-D (M = month (1 <= M <= 12), D = day (1 <= D <= 31)).\n'
+			help_reply += '**[date]:** YYYY/M/D or YYYY-M-D M/D or M-D (YYYY = year (1 <= YYYY <= 9999), M = month (1 <= M <= 12), D = day (1 <= D <= 31)).\n'
+			help_reply += 'Note: if the year is not inputted in the date, the next available date on M/D will be inputted. The bot will ignore years on bday inputs.\n'
 			help_reply += '**[time]:** H:M or H:M am/pm or H or H am/pm (H = hour (1 <= H <= 12 or 1 <= H <= 24), M = minute (1 <= M <= 59)).\n'
 			help_reply += '**[day]:** Sundays: (su, sun, sunday, sundays), Mondays: (m, mon, monday, mondays), Tuesdays: (tu, tue, tues, tuesday, tuesdays), '
 			help_reply += 'Wednesdays: (w, wed, wednesday, wednesdays), Thursdays: (th, thu, thur, thurs, thursday, thursdays), Fridays: (f, fri, friday, fridays), '
@@ -424,6 +452,9 @@ async def help_command(message, command = ''):
 			help_reply += f'{desktop_prefix} add meeting on 9-20 at 4 pm\n'
 			help_reply += f'{desktop_prefix} add weekly meeting on mondays at 18\n'
 			help_reply += f'{desktop_prefix} add bday on 12-1 for Josh\n'
+			help_reply += f'{desktop_prefix} add meeting on 2024/10/31 at 1 am\n'
+			help_reply += f'{desktop_prefix} add weekly meeting on friday at 1:45 pm\n'
+			help_reply += f'{desktop_prefix} add bday on 4/1 for Francis Fulloffrenchpeople'
 
 			await safe_reply(message, help_reply)
 		# if the info on the remove command was requested
@@ -565,9 +596,89 @@ async def add_command(message, command):
 	if channel_perms.add_reactions:
 		# if the command follows the format "add meeting on *day* at *time"
 		if len(command) > 5 and command[1].lower() == 'meeting' and command[2].lower() == 'on' and command[4].lower() == 'at':
-			return
+			# extract date
+
+			date_nums = []
+			# if the date uses slashes
+			if '/' in command[3] and not '-' in command[3]:
+				# split the string by slashes
+				date_nums = command[3].split('/')
+			# if the date uses dashes
+			elif '-' in command[3] and not '/' in command[3]:
+				# split the string by dashes
+				date_nums = command[3].split('-')
+			# if the date argument either has both slashes and dashes or neither
+			else:
+				await react_with_x(message)
+				return
+			
+			year = None
+			month = None
+			day = None
+			# if there are exactly 2 strings from the split and they are both positive integers
+			if len(date_nums) == 2 and date_nums[0].isnumeric() and date_nums[1].isnumeric():
+				# convert those strings into numbers
+				month = int(date_nums[0])
+				day = int(date_nums[1])
+			# if there are exactly 3 strings from the split and they are all positive integers
+			elif len(date_nums) == 3 and date_nums[0].isnumeric() and date_nums[1].isnumeric() and date_nums[2].isnumeric():
+				# convert those strings into numbers
+				year = int(date_nums[0])
+				month = int(date_nums[1])
+				day = int(date_nums[2])
+			# if the date input is invalid
+			else:
+				await react_with_x(message)
+				return
+			
+			# extract time
+
+			hour = None
+			minute = None
+			# if the command has a "pm" or "am" after the time
+			if len(command) > 6:
+				# extract 12 hour time string into 24 hour time numbers
+				hour, minute = str_to_time_12hr(command[5], command[6])
+			else:
+				# extract 24 hour time string into numbers
+				hour, minute = str_to_time_24hr(command[5])
+			# if a valid time was not inputted
+			if hour is None:
+				await react_with_x(message)
+				return
+			
+			# construct datetime object
+
+			# if the year wasn't inputted
+			if year is None:
+				if valid_date(day, month):
+					now = datetime.datetime.now()
+					meeting = datetime.datetime(now.year, month, day, hour=hour, minute=minute)
+					if meeting < now:
+						meeting = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute)
+				else:
+					await react_with_x(message)
+					return
+			# if a year was inputted
+			else:
+				if valid_date(day, month, year=year):
+					meeting = datetime.datetime(year, month, day, hour=hour, minute=minute)
+					now = datetime.datetime.now()
+					if meeting < now:
+						await react_with_x(message)
+						return
+			
+			# add meeting to list
+
+			# if the meeting time is successfully added to the list in order and is not a duplicate
+			if add_meeting(meetings[message.guild], meeting):
+				await react_with_check(message)
+			else:
+				await react_with_x(message)
 		# if the command follows the format "add weekly meeting on *day* at *time*"
 		elif len(command) > 6 and command[1].lower() == 'weekly' and command[2].lower() == 'meeting' and command[3].lower() == 'on' and command[5].lower() == 'at':
+			# extract day
+
 			# get a number 0 to 6 of the day of the week
 			day = day_to_num(command[4])
 			# if a valid day of the week was not inputted
@@ -575,6 +686,8 @@ async def add_command(message, command):
 				await react_with_x(message)
 				return
 			
+			# extract time
+
 			hour = 0
 			minute = 0
 			# if the command has a "pm" or "am" after the time
@@ -589,9 +702,11 @@ async def add_command(message, command):
 				await react_with_x(message)
 				return
 			
+			# add day and time to list
+
 			meeting_time = WeeklyTime(day, hour, minute)
 			# if the meeting time is successfully added to the list in order and is not a duplicate
-			if add_weekly_meeting(weekly_meetings[message.guild], meeting_time):
+			if add_meeting(weekly_meetings[message.guild], meeting_time):
 				await react_with_check(message)
 			else:
 				await react_with_x(message)
@@ -609,33 +724,17 @@ async def remove_command(message, command):
 	# if the bot has permission to add reactions in this channel
 	if channel_perms.add_reactions:
 		# if the command follows the format "remove meeting(s) # # # ..."
-		if len(command) > 3 and (command[1].lower() == 'meeting' or command[1].lower() == 'meetings'):
-			return
+		if len(command) > 2 and (command[1].lower() == 'meeting' or command[1].lower() == 'meetings'):
+			if remove_meetings(meetings[message.guild], command[2:]):
+				await react_with_check(message)
+			else:
+				await react_with_x(message)
 		# if the command follows the format "remove weekly meeting(s) # # # ..."
 		elif len(command) > 3 and command[1].lower() == 'weekly' and (command[2].lower() == 'meeting' or command[2].lower() == 'meetings'):
-			meeting_indexes = []
-			# loop through each argument
-			for arg in command[3:]:
-				# if the argument is a positive integer
-				if arg.isnumeric():
-					# turn the argument into a number
-					index = int(arg)
-					# if the number is between 1 and the last weekly meeting number
-					if index >= 1 and index  <= len(weekly_meetings[message.guild]):
-						# add that number to a list of indexes to remove
-						meeting_indexes.append(index)
-						continue
-				
-				# if any of the arguments aren't valid
-				await react_with_x(message)
-				return
-			
-			# sort the list of indexes in reverse order because the right indexes will change while they're being removed if they're iterated through ascending order
-			meeting_indexes.sort(reverse=True)
-			# remove each meeting from the list in reverse order
-			for i in meeting_indexes:
-				weekly_meetings[message.guild].pop(i - 1)
+			if remove_meetings(weekly_meetings[message.guild], command[3:]):
 				await react_with_check(message)
+			else:
+				await react_with_x(message)
 		# if the command isn't recognized
 		else:
 			await react_with_x(message)
@@ -649,14 +748,12 @@ async def meetings_command(message):
 		
 		# if there are no one time meetings
 		if len(meetings[message.guild]) == 0:
-			reply += '**No meetings.**\n'
+			reply += '**No meetings.**\n\n'
 		# if there is at least 1 meeting
 		else:
 			# display all of the meetings in a numbered list
 			for i in range(len(meetings[message.guild])):
 				reply += f'**{i+1}. {meetings[message.guild][i]}**\n\n'
-
-		reply += '\n'
 
 		reply += '```Weekly Meetings```\n'
 
@@ -873,6 +970,26 @@ def str_to_time_24hr(time: str):
 		
 		# return none if the input was not valid
 		return None, None
+
+# returns if a set of integers are valid for construction of a date object
+def valid_date(day: int, month: int, year: int = datetime.MINYEAR) -> bool:
+	if year < datetime.MINYEAR or year > datetime.MAXYEAR:
+		return False
+	elif month < 1 or month > 12:
+		return False
+	elif day < 1:
+		return False
+	elif month == 1 or month == 3 or month == 5 or month == 7 or month == 8 or month == 10 or month == 12:
+		if day > 31:
+			return False
+	elif month == 2:
+		if day > 29:
+			return False
+	elif month == 4 or month == 6 or month == 9 or month == 11:
+		if day > 30:
+			return False
+	
+	return True
 
 ########################################################################################################################
 #
