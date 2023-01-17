@@ -12,6 +12,7 @@
 
 import discord
 import os
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -198,6 +199,9 @@ with open('token.txt', 'r') as file:
 desktop_prefix = ""
 mobile_prefix = ""
 
+# root directory of all server data
+server_root = 'servers'
+
 # used for keeping track of one-time meetings for each server
 # maps a discord server / guild to a list of datetime objects
 meetings = {}
@@ -224,8 +228,11 @@ async def on_ready():
 
 # sets up all of the data for a server when it joins one or the bot starts running
 def startup_server(server):
-	server_folder_name = server.name[:128].replace(' ', '_')
-	server_folder = f'servers/{server.id}-{server_folder_name}'
+	# create necessary directories and folders if they don't already exist
+
+	# gets the path to the server's data folder
+	server_folder = get_server_folder_name(server)
+	# path to server's meetings file
 	meetings_file = f'{server_folder}/meetings.txt'
 	# if the server folder doesn't exist, make one
 	if not os.path.isdir('servers'):
@@ -246,6 +253,18 @@ def startup_server(server):
 @client.event
 async def on_guild_join(server):
 	startup_server(server)
+
+# removes all of a server's data when the bot leaves a server
+@client.event
+async def on_guild_remove(server):
+	# removes server's meeting entries in ram
+	meetings.pop(server)
+	weekly_meetings.pop(server)
+
+	# gets the path to the server's data folder
+	server_folder = get_server_folder_name(server)
+	# deletes the folder and all files in it
+	shutil.rmtree(server_folder)
 
 ########################################################################################################################
 #
@@ -341,11 +360,11 @@ async def help_command(message, command = ''):
 			help_reply += '```Usages:```\n'
 
 			help_reply += f'**{desktop_prefix} add meeting on [date] at [time]**\n'
-			help_reply += 'This will add a meeting to the bot, and the bot will remind you about the meeting on [date] a few minutes before [time].\n'
+			help_reply += 'This will add a meeting to the bot, and the bot will remind you about the meeting on [date] a few minutes before [time] and then forget about it.\n'
 			help_reply += 'Note: you cannot add a meeting with the exact same time and date as an already existing meeting.\n\n'
 
 			help_reply += f'**{desktop_prefix} add weekly meeting on [day] at [time]**\n'
-			help_reply += 'This will add a meeting to the bot that recurs every week, and the bot will remind you about the meeting on [day] a few minutes before [time].\n'
+			help_reply += 'This will add a meeting to the bot that recurs every week, and the bot will remind you about the meeting every week on [day] a few minutes before [time].\n'
 			help_reply += 'Note: you cannot add a weekly meeting with the exact same time and day as an already existing weekly meeting.\n\n'
 
 			help_reply += f'**{desktop_prefix} add bday on [date] for [name]**\n'
@@ -440,8 +459,11 @@ async def add_command(message, command):
 	channel_perms = message.channel.permissions_for(message.guild.me)
 	# if the bot has permission to add reactions in this channel
 	if channel_perms.add_reactions:
+		# if the command follows the format "add meeting on *day* at *time"
+		if len(command) > 5 and command[1].lower() == 'meeting' and command[2].lower() == 'on' and command[4].lower() == 'at':
+			return
 		# if the command follows the format "add weekly meeting on *day* at *time*"
-		if len(command) > 6 and command[1].lower() == 'weekly' and command[2].lower() == 'meeting' and command[3].lower() == 'on' and command[5].lower() == 'at':
+		elif len(command) > 6 and command[1].lower() == 'weekly' and command[2].lower() == 'meeting' and command[3].lower() == 'on' and command[5].lower() == 'at':
 			# get a number 0 to 6 of the day of the week
 			day = day_to_num(command[4])
 			# if a valid day of the week was not inputted
@@ -470,9 +492,6 @@ async def add_command(message, command):
 			else:
 				await react_with_x(message)
 		
-		# if the command follows the format "add meeting on *day* at *time"
-		elif len(command) > 5 and command[1].lower() == 'meeting' and command[2].lower() == 'on' and command[4].lower() == 'at':
-			return
 		# if the command follows the format "add birthday on *day*"
 		elif len(command) > 3 and command[1].lower() == 'birthday' and command[2].lower() == 'on':
 			return
@@ -485,8 +504,11 @@ async def remove_command(message, command):
 	channel_perms = message.channel.permissions_for(message.guild.me)
 	# if the bot has permission to add reactions in this channel
 	if channel_perms.add_reactions:
+		# if the command follows the format "remove meeting(s) # # # ..."
+		if len(command) > 3 and (command[1].lower() == 'meeting' or command[1].lower() == 'meetings'):
+			return
 		# if the command follows the format "remove weekly meeting(s) # # # ..."
-		if len(command) > 3 and command[1].lower() == 'weekly' and (command[2].lower() == 'meeting' or command[2].lower() == 'meetings'):
+		elif len(command) > 3 and command[1].lower() == 'weekly' and (command[2].lower() == 'meeting' or command[2].lower() == 'meetings'):
 			meeting_indexes = []
 			# loop through each argument
 			for arg in command[3:]:
@@ -510,9 +532,6 @@ async def remove_command(message, command):
 			for i in meeting_indexes:
 				weekly_meetings[message.guild].pop(i - 1)
 				await react_with_check(message)
-		# if the command follows the format "remove meeting(s) # # # ..."
-		elif len(command) > 3 and (command[1].lower() == 'meeting' or command[1].lower() == 'meetings'):
-			return
 		# if the command isn't recognized
 		else:
 			await react_with_x(message)
@@ -568,6 +587,18 @@ async def react_with_x(message):
 	channel_perms = message.channel.permissions_for(message.guild.me)
 	if channel_perms.add_reactions and message is not None:
 		await message.add_reaction("\u274c")
+
+# returns the path to a server's data folder
+def get_server_folder_name(server) -> str:
+	# get server's name up to 128 chars
+	server_name = server.name[:128]
+	# turn all illegal filename chars in the name to underscores
+	illegal_chars = ['#', '%', '&', '{', '}', '\\', '<', '>', '*', '?', '/', ' ', '$', '!', '\'', '"', ':', '@', '+', '`', '|', '=']
+	for c in illegal_chars:
+		server_name = server_name.replace(c, '_')
+	# server's data folder path
+	server_folder = f'{server_root}/{server.id}-{server_name}'
+	return server_folder
 
 # returns whether or not a string is a day of the week
 
