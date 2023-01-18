@@ -181,10 +181,14 @@ weekly_meetings = {}
 # used for keeping track of agenda notetaking orders for a server
 # maps a discord server / guild to a list of strings of names
 agenda = {}
+# maps a discord server / guild to an index in the agenda list for that server
+agenda_index = {}
 
 # used for keeping track of meeting minutes notetaking orders for a server
 # maps a discord server / guild to a list of strings of names
 minutes = {}
+# maps a discord server / guild to an index in the meeting minutes list for that server
+minutes_index = {}
 
 # called as soon as the bot is fully online and operational
 @client.event
@@ -231,7 +235,9 @@ async def startup_server(server):
 	meetings[server] = []
 	weekly_meetings[server] = []
 	agenda[server] = []
+	agenda_index[server] = 0
 	minutes[server] = []
+	minutes_index[server] = 0
 
 # sets up the bot for a new server every time it joins one while running
 @client.event
@@ -816,16 +822,25 @@ async def set_command(message, command):
 				# if an item is an empty string or only whitespace, remove it
 				if name_list[i] == '' or name_list[i].isspace():
 					name_list.pop(i)
-				# if it isn't an empty string, remove whitespace from the ends
+				# if it isn't an empty string
 				else:
+					# remove surrounding whitespace
 					name_list[i] = name_list[i].strip()
+					# if the name is a duplicate
+					dupe = name_list.copy()
+					dupe.pop(i)
+					if name_list[i] in dupe:
+						await react_with_x(message)
+						return
 			
 			# if agenda list was passed as an argument, set the agenda list to the new list
 			if command[1] == 'agenda':
 				agenda[message.guild] = name_list
+				agenda_index[message.guild] = 0
 			# if the minutes list was passed as an argument, set the agenda list to the new list
 			elif command[1] == 'minutes':
 				minutes[message.guild] = name_list
+				minutes_index[message.guild] = 0
 			# if the argument isn't recognized
 			else:
 				await react_with_x(message)
@@ -834,7 +849,40 @@ async def set_command(message, command):
 			await react_with_check(message)
 		# if the user wants to skip to a person on the list
 		elif len(command) > 3 and command[2].lower() == 'to':
+			# set the 'agenda' / 'minutes' argument to all lowercase for easy comparison later
 			command[1] = command[1].lower()
+			# if the agenda list was passed as an argument
+			if command[1] == 'agenda':
+				# rebuild the name of the person passed as an argument into a string
+				name = command[3]
+				for token in command[4:]:
+					name += ' ' + token
+				
+				# if that name is not in the agenda list
+				if name not in agenda[message.guild]:
+					await react_with_x(message)
+					return
+				
+				# set the index of the current person on agenda duty to the name passed as an argument
+				agenda_index[message.guild] = agenda[message.guild].index(name)
+				await react_with_check(message)
+			# if the minutes list was passed as an argument
+			elif command[1] == 'minutes':
+				# rebuild the name of the person passed as an argument into a string
+				name = command[3]
+				for token in command[4:]:
+					name += ' ' + token
+				
+				# if that name is not in the minutes list
+				if name not in minutes[message.guild]:
+					await react_with_x(message)
+					return
+				
+				# set the index of the current person on meeting minutes duty to the name passed as an argument
+				minutes_index[message.guild] = minutes[message.guild].index(name)
+				await react_with_check(message)
+			else:
+				await react_with_x(message)
 		# if the command is not valid
 		else:
 			await react_with_x(message)
@@ -847,12 +895,20 @@ async def noteorder_command(message):
 		reply = '```Agenda Duty:```\n'
 
 		for i in range(len(agenda[message.guild])):
-			reply += f'**{i + 1}. {agenda[message.guild][i]}**\n\n'
+			reply += f'**{i + 1}. {agenda[message.guild][i]}**'
+			if i == agenda_index[message.guild]:
+				reply += '  <-- Up Next'
+			
+			reply += '\n\n'
 		
 		reply += '```Meeting Minutes Duty:```\n'
 
 		for i in range(len(minutes[message.guild])):
-			reply += f'**{i + 1}. {minutes[message.guild][i]}**\n\n'
+			reply += f'**{i + 1}. {minutes[message.guild][i]}**'
+			if i == minutes_index[message.guild]:
+				reply += '  <-- Up Next'
+			
+			reply += '\n\n'
 		
 		await safe_reply(message, reply)
 	else:
