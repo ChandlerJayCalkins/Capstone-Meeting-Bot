@@ -22,6 +22,17 @@ from pathlib import Path
 #
 ########################################################################################################################
 
+# class for storing a server's data (like agenda order list and meeting times)
+class ServerData:
+	def __init__(self, server):
+		self.server = server
+		self.meetings = []
+		self.weekly_meetings = []
+		self.agenda_list = []
+		self.agenda_index = 0
+		self.minutes_list = []
+		self.minutes_index = 0
+
 # class for holding time data for weekly meetings
 class WeeklyTime:
 	# constructor
