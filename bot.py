@@ -911,8 +911,6 @@ async def noteorder_command(message):
 			# if the person that was just printed is up next, put an arrow and some text next to their name to say so
 			if i == minutes_index[message.guild]:
 				reply += '  <-- Up Next'
-			
-			reply += '\n\n'
 		
 		await safe_reply(message, reply)
 	else:
