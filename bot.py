@@ -913,6 +913,7 @@ async def noteorder_command(message):
 				reply += '  <-- Up Next'
 		
 		await safe_reply(message, reply)
+	# if the bot doesn't have permission to send message in the channel of the message
 	else:
 		await react_with_x(message)
 
