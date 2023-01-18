@@ -881,6 +881,7 @@ async def set_command(message, command):
 				# set the index of the current person on meeting minutes duty to the name passed as an argument
 				minutes_index[message.guild] = minutes[message.guild].index(name)
 				await react_with_check(message)
+			# if the argument isn't recognized
 			else:
 				await react_with_x(message)
 		# if the command is not valid
