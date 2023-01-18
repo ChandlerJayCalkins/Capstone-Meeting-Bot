@@ -893,6 +893,7 @@ async def noteorder_command(message):
 	channel_perms = message.channel.permissions_for(message.guild.me)
 	# if the bot has permission to send messages in the channel of the message
 	if channel_perms.send_messages:
+		up_next = '  <-- Up Next'
 		reply = '```Agenda Duty:```\n'
 
 		# display the list of people on agenda duty
@@ -900,7 +901,7 @@ async def noteorder_command(message):
 			reply += f'**{i + 1}. {agenda[message.guild][i]}**'
 			# if the person that was just printed is up next, put an arrow and some text next to their name to say so
 			if i == agenda_index[message.guild]:
-				reply += '  <-- Up Next'
+				reply += up_next
 			
 			reply += '\n\n'
 		
@@ -911,7 +912,7 @@ async def noteorder_command(message):
 			reply += f'**{i + 1}. {minutes[message.guild][i]}**'
 			# if the person that was just printed is up next, put an arrow and some text next to their name to say so
 			if i == minutes_index[message.guild]:
-				reply += '  <-- Up Next'
+				reply += up_next
 		
 		await safe_reply(message, reply)
 	# if the bot doesn't have permission to send message in the channel of the message
