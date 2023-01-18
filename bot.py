@@ -894,8 +894,10 @@ async def noteorder_command(message):
 	if channel_perms.send_messages:
 		reply = '```Agenda Duty:```\n'
 
+		# display the list of people on agenda duty
 		for i in range(len(agenda[message.guild])):
 			reply += f'**{i + 1}. {agenda[message.guild][i]}**'
+			# if the person that was just printed is up next, put an arrow and some text next to their name to say so
 			if i == agenda_index[message.guild]:
 				reply += '  <-- Up Next'
 			
@@ -903,8 +905,10 @@ async def noteorder_command(message):
 		
 		reply += '```Meeting Minutes Duty:```\n'
 
+		# display the list of people on meeting minutes duty
 		for i in range(len(minutes[message.guild])):
 			reply += f'**{i + 1}. {minutes[message.guild][i]}**'
+			# if the person that was just printed is up next, put an arrow and some text next to their name to say so
 			if i == minutes_index[message.guild]:
 				reply += '  <-- Up Next'
 			
