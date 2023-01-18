@@ -261,6 +261,10 @@ async def on_guild_remove(server):
 	# removes server's meeting entries in ram
 	meetings.pop(server)
 	weekly_meetings.pop(server)
+	agenda.pop(server)
+	agenda_index.pop(server)
+	minutes.pop(server)
+	minutes_index.pop(server)
 
 	# gets the path to the server's data folder
 	server_folder = get_server_folder_name(server)
