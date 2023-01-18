@@ -178,6 +178,14 @@ meetings = {}
 # maps a discord server / guild to a list of WeeklyTime objects
 weekly_meetings = {}
 
+# used for keeping track of agenda notetaking orders for a server
+# maps a discord server / guild to a list of strings of names
+agenda = {}
+
+# used for keeping track of meeting minutes notetaking orders for a server
+# maps a discord server / guild to a list of strings of names
+minutes = {}
+
 # called as soon as the bot is fully online and operational
 @client.event
 async def on_ready():
@@ -222,6 +230,8 @@ async def startup_server(server):
 	# TODO: make it so these read from a file that store the meetings to initialize the lists instead
 	meetings[server] = []
 	weekly_meetings[server] = []
+	agenda[server] = []
+	minutes[server] = []
 
 # sets up the bot for a new server every time it joins one while running
 @client.event
@@ -379,6 +389,12 @@ async def on_message(message):
 			# if it's the show meetings command
 			elif command[0] == 'meetings':
 				await meetings_command(message)
+			# if it's the set notetaking order command
+			elif command[0] == 'set':
+				await set_command(message, command)
+			# if it's the noteorder command
+			elif command[0] == 'noteorder':
+				await noteorder_command(message)
 			else:
 				await help_command(message)
 		# if the bot was @'d with no command
@@ -779,6 +795,69 @@ async def meetings_command(message):
 	else:
 		await react_with_x(message)
 
+# handles the set command that sets the order of agenda and meeting minutes notetaking duty
+async def set_command(message, command):
+	channel_perms = message.channel.permissions_for(message.guild.me)
+	# if the bot has permission to send messages in the channel of the message
+	if channel_perms.add_reactions:
+		# if user wants to remake a list
+		if len(command) > 4 and command[2].lower() == 'order' and command[3].lower() == 'to':
+			# set the 'agenda' / 'minutes' argument to all lowercase for easy comparison later
+			command[1] = command[1].lower()
+			# rebuild the list of names as a string
+			name_list = command[4]
+			for token in command[5:]:
+				name_list += ' ' + token
+			
+			# split the list of names by commas
+			name_list = name_list.split(',')
+			# iterate backwards through the name list (since some items might be removed)
+			for i in range(len(name_list)-1, -1, -1):
+				# if an item is an empty string or only whitespace, remove it
+				if name_list[i] == '' or name_list[i].isspace():
+					name_list.pop(i)
+				# if it isn't an empty string, remove whitespace from the ends
+				else:
+					name_list[i] = name_list[i].strip()
+			
+			# if agenda list was passed as an argument, set the agenda list to the new list
+			if command[1] == 'agenda':
+				agenda[message.guild] = name_list
+			# if the minutes list was passed as an argument, set the agenda list to the new list
+			elif command[1] == 'minutes':
+				minutes[message.guild] = name_list
+			# if the argument isn't recognized
+			else:
+				await react_with_x(message)
+				return
+			
+			await react_with_check(message)
+		# if the user wants to skip to a person on the list
+		elif len(command) > 3 and command[2].lower() == 'to':
+			command[1] = command[1].lower()
+		# if the command is not valid
+		else:
+			await react_with_x(message)
+
+# handles the noteorder command that shows the current agenda and meeting minutes order
+async def noteorder_command(message):
+	channel_perms = message.channel.permissions_for(message.guild.me)
+	# if the bot has permission to send messages in the channel of the message
+	if channel_perms.send_messages:
+		reply = '```Agenda Duty:```\n'
+
+		for i in range(len(agenda[message.guild])):
+			reply += f'**{i + 1}. {agenda[message.guild][i]}**\n\n'
+		
+		reply += '```Meeting Minutes Duty:```\n'
+
+		for i in range(len(minutes[message.guild])):
+			reply += f'**{i + 1}. {minutes[message.guild][i]}**\n\n'
+		
+		await safe_reply(message, reply)
+	else:
+		await react_with_x(message)
+
 ########################################################################################################################
 #
 # command utility functions
@@ -806,7 +885,7 @@ async def safe_reply(message, reply: str):
 		# while the reply is too long to send, find a split point before the message limit and send the reply up to that point
 		while (len(reply) > max_message_len):
 			# strings to split the reply at before the message limit
-			split_strs = ['\n\n', '\n', ' ']
+			split_strs = ["\n\n", "\n", " "]
 			# index of where the reply will be split
 			split_index = -1
 			# loop through each substring to get the index of the last instance of one of the strings in split_strs in the relpy before the max message length
