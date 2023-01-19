@@ -28,10 +28,163 @@ class ServerData:
 		self.server = server
 		self.meetings = []
 		self.weekly_meetings = []
-		self.agenda_list = []
+		self.agenda_order = []
 		self.agenda_index = 0
-		self.minutes_list = []
+		self.minutes_order = []
 		self.minutes_index = 0
+	
+	# adds a meeting time to the meeting list in sorted order with a binary search
+	# returns true if the meeting was added to the list, false if that time is already in the list
+	def add_meeting(self, time: datetime.datetime) -> bool:
+		# if the meeting list is empty, just add the meeting to the list
+		if len(meetings) == 0:
+			self.meetings.append(time)
+		# if there's only 1 item in the list
+		elif len(self.meetings) == 1:
+			if time < self.meetings[0]:
+				self.meetings.insert(0, time)
+			elif time > self.meetings[0]:
+				self.meetings.append(time)
+			# if the time is a duplicate
+			else:
+				return False
+		# if the list has at least 2 meetings, do a binary insert
+		else:
+			# start by checking entire list
+			low = 0
+			high = len(self.meetings) - 1
+			# while there are more than 2 more list items to check
+			while high - low > 1:
+				# get mid point of remaining list to check
+				mid = (high - low) // 2 + low
+				# if the time is less than the mid point, remove the upper half of the remaining list to check
+				if time < self.meetings[mid]:
+					high = mid - 1
+				# if the time is greater than the mid point, remove the lower half of the remaining list to check
+				elif time > self.meetings[mid]:
+					low = mid + 1
+				# if the time is a duplicate
+				else:
+					return False
+			
+			# if the time is between the last 2 items
+			if time > self.meetings[low] and time < self.meetings[high]:
+				# insert the time between those 2 items
+				self.meetings.insert(high, time)
+			# if the time is less than the lower last item
+			elif time < self.meetings[low]:
+				# insert the time in front of that item
+				self.meetings.insert(low, time)
+			# if the time is greater than the higher last item
+			elif time > self.meetings[high]:
+				# insert the time after that item
+				self.meetings.insert(high + 1, time)
+			# if the time is equal to one of those times
+			else:
+				return False
+		
+		return True
+	
+	# adds a weekly meeting time to a weekly meeting list in sorted order with a binary search
+	# returns true if the meeting was added to the list, false if that time is already in the list
+	def add_weekly_meeting(self, time: datetime.datetime) -> bool:
+		# if the meeting list is empty, just add the meeting to the list
+		if len(meetings) == 0:
+			self.weekly_meetings.append(time)
+		# if there's only 1 item in the list
+		elif len(self.weekly_meetings) == 1:
+			if time < self.weekly_meetings[0]:
+				self.weekly_meetings.insert(0, time)
+			elif time > self.weekly_meetings[0]:
+				self.weekly_meetings.append(time)
+			# if the time is a duplicate
+			else:
+				return False
+		# if the list has at least 2 meetings, do a binary insert
+		else:
+			# start by checking entire list
+			low = 0
+			high = len(self.weekly_meetings) - 1
+			# while there are more than 2 more list items to check
+			while high - low > 1:
+				# get mid point of remaining list to check
+				mid = (high - low) // 2 + low
+				# if the time is less than the mid point, remove the upper half of the remaining list to check
+				if time < self.weekly_meetings[mid]:
+					high = mid - 1
+				# if the time is greater than the mid point, remove the lower half of the remaining list to check
+				elif time > self.weekly_meetings[mid]:
+					low = mid + 1
+				# if the time is a duplicate
+				else:
+					return False
+			
+			# if the time is between the last 2 items
+			if time > self.weekly_meetings[low] and time < self.weekly_meetings[high]:
+				# insert the time between those 2 items
+				self.weekly_meetings.insert(high, time)
+			# if the time is less than the lower last item
+			elif time < self.weekly_meetings[low]:
+				# insert the time in front of that item
+				self.weekly_meetings.insert(low, time)
+			# if the time is greater than the higher last item
+			elif time > self.weekly_meetings[high]:
+				# insert the time after that item
+				self.weekly_meetings.insert(high + 1, time)
+			# if the time is equal to one of those times
+			else:
+				return False
+		
+		return True
+	
+	# removes meetings from a list of meetings given a list of arguments of the meetings' numbers
+	# returns true if all of the meetings were successfully removed, returns false if one of the meeting numbers wasn't valid
+	def remove_meetings(self, meeting_numbers: list) -> bool:
+		meeting_indexes = []
+		# loop through each argument
+		for arg in meeting_numbers:
+			# if the argument is a positive integer
+			if arg.isnumeric():
+				# turn the argument into a number
+				index = int(arg)
+				# if the number is between 1 and the last weekly meeting number
+				if index >= 1 and index  <= len(self.meetings):
+					# add that number to a list of indexes to remove
+					meeting_indexes.append(index)
+					continue
+			
+			# if any of the arguments aren't valid
+			return False
+		
+		# sort the list of indexes in reverse order because the right indexes will change while they're being removed if they're iterated through ascending order
+		meeting_indexes.sort(reverse=True)
+		# remove each meeting from the list in reverse order
+		for i in meeting_indexes:
+			self.meetings.pop(i - 1)
+		
+		return True
+	
+	# sets the agenda notetaking order to a given list of names
+	def set_agenda_order(self, names: list):
+		self.agenda_order = names
+	
+	# sets the meeting minutes notetaking order to a given list of names
+	def set_minutes_order(self, names: list):
+		self.minutes_order = names
+	
+	def set_agenda_to(self, name: str) -> bool:
+		if name in self.agenda_order:
+			self.agenda_index = self.agenda_order.find(name)
+			return True
+		else:
+			return False
+	
+	def set_minutes_to(self, name: str) -> bool:
+		if name in self.minutes_order:
+			self.minutes_index = self.minutes_order.find(name)
+			return True
+		else:
+			return False
 
 # class for holding time data for weekly meetings
 class WeeklyTime:
