@@ -18,8 +18,8 @@ or, for voice support as well if you want (not required for this bot)
 - python3 -m pip install -U discord.py\[voice\]
 
 # Required Permissions for the Bot
-- Send Messages
-- Send Messages in Threads
-- Read Message History
-- Mention Everyone
-- Add Reactions
+[x] Send Messages
+[x] Send Messages in Threads
+[x] Read Message History
+[x] Mention Everyone
+[x] Add Reactions
