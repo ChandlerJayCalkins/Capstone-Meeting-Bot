@@ -260,7 +260,7 @@ mobile_prefix = ""
 # root directory of all server data
 server_root = 'servers'
 
-# used for keeping track of each server's meeting / noteorders etc.
+# used for keeping track of each server's meeting / dutyorders etc.
 # maps a discord guild object to a ServerData object
 server_data = {}
 
@@ -413,9 +413,9 @@ async def on_message(message):
 			# if it's the set notetaking order command
 			elif command[0] == 'set':
 				await set_command(message, command)
-			# if it's the noteorder command
-			elif command[0] == 'noteorder':
-				await noteorder_command(message)
+			# if it's the dutyorder command
+			elif command[0] == 'dutyorder':
+				await dutyorder_command(message)
 			else:
 				await help_command(message)
 		# if the bot was @'d with no command
@@ -565,22 +565,22 @@ async def help_command(message, command = ''):
 			help_reply += 'It will also reset the agenda notetaking list to start at the first name in this command and work it\'s way down.\n'
 			help_reply += 'Every time there is a meeting, the bot will remind you whose turn it is on agenda, and after the meeting has started '
 			help_reply += 'it will move onto the next person in the list for the next meeting.\n'
-			help_reply += 'Note: See the current agenda order in the "noteorder" command info.\n\n'
+			help_reply += 'Note: See the current agenda order in the "dutyorder" command info.\n\n'
 
 			help_reply += f'**{desktop_prefix} set minutes order as [name], [name], [name], ...**\n'
 			help_reply += 'This will set the meeting minutes notetaking order as the list of names at the end of the command.\n'
 			help_reply += 'It will also reset the meeting minutes notetaking list to start at the first name in this command and work it\'s way down.\n'
 			help_reply += 'Every time there is a meeting, the bot will remind you whose turn it is on minutes, and after the meeting has started '
 			help_reply += 'it will move onto the next person in the list for the next meeting.\n'
-			help_reply += 'Note: See the current meeting minutes order in the "noteorder" command info.\n\n'
+			help_reply += 'Note: See the current meeting minutes order in the "dutyorder" command info.\n\n'
 
 			help_reply += f'**{desktop_prefix} set agenda to [name]**\n'
 			help_reply += 'This will set the next person from the agenda list on agenda notetaking duty to [name].\n'
-			help_reply += 'Note: See the current agenda order in the "noteorder" command info.\n\n'
+			help_reply += 'Note: See the current agenda order in the "dutyorder" command info.\n\n'
 
 			help_reply += f'**{desktop_prefix} set minutes to [name]**\n'
 			help_reply += 'This will set the next person from the minutes list on meeting minutes notetaking duty to [name].\n'
-			help_reply += 'Note: See the current meeting minutes order in the "noteorder" command info.\n\n'
+			help_reply += 'Note: See the current meeting minutes order in the "dutyorder" command info.\n\n'
 
 			help_reply += '**Formatting:**\n\n'
 			help_reply += 'Multiple names must be separated by commas.\n'
@@ -593,14 +593,14 @@ async def help_command(message, command = ''):
 			help_reply += f'{desktop_prefix} set minutes to Tyler\n'
 
 			await safe_reply(message, help_reply)
-		# if the info on the noteorder command was requested
-		elif command == 'noteorder':
+		# if the info on the dutyorder command was requested
+		elif command == 'dutyorder':
 			# list of string lines that the bot will reply to the help command with
 			help_reply = f'`{command}:` Displays the current agenda a meeting minutes notetaking order.\n\n'
 
 			help_reply += '```Usage:```\n'
 
-			help_reply += f'**{desktop_prefix} noteorder**\n'
+			help_reply += f'**{desktop_prefix} dutyorder**\n'
 			help_reply += 'This will display the current agenda and meeting minutes notetaking order, as well as who\'s next on each list.\n'
 			help_reply += 'Note: See how to set the agenda and minutes orders in the "set" command info.'
 
@@ -620,7 +620,7 @@ async def help_command(message, command = ''):
 		# if no argument was given or it isn't recognized
 		else:
 			# list of commands that the bot has
-			command_list = ['help', 'add', 'remove', 'meetings', 'set', 'noteorder', 'alert', 'bdays']
+			command_list = ['help', 'add', 'remove', 'meetings', 'set', 'dutyorder', 'alert', 'bdays']
 			# list of string lines that the bot will reply to the help command with
 			help_reply = f'`Usage:` **{desktop_prefix} [command] [argument argument argument...]**\n\n'
 			help_reply += f'Type "{desktop_prefix} help [command]" to get more info on how to use a specific command.\n\n'
@@ -937,8 +937,8 @@ async def set_command(message, command):
 		else:
 			await react_with_x(message)
 
-# handles the noteorder command that shows the current agenda and meeting minutes order
-async def noteorder_command(message):
+# handles the dutyorder command that shows the current agenda and meeting minutes order
+async def dutyorder_command(message):
 	channel_perms = message.channel.permissions_for(message.guild.me)
 	# if the bot has permission to send messages in the channel of the message
 	if channel_perms.send_messages:
