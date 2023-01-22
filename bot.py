@@ -1,15 +1,3 @@
-# required packages for this bot:
-#	pip install discord
-
-# required permissions for the bot:
-#	Send Messages
-#	Send Messages in Threads
-#	Embed Links
-#	Attach Files
-#	Read Message History
-#	Mention Everyone
-#	Add Reactions
-
 # file extension meaings:
 #	.lst - list files (contain lists of plaintext data separated by line breaks)
 #	.cfg - configuration files (settings)
