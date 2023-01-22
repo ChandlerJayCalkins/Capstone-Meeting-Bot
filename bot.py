@@ -201,10 +201,12 @@ class ServerData:
 	# sets the agenda notetaking order to a given list of names
 	def set_agenda_order(self, names: list):
 		self.agenda_order = names
+		self.agenda_index = 0
 	
 	# sets the meeting minutes notetaking order to a given list of names
 	def set_minutes_order(self, names: list):
 		self.minutes_order = names
+		self.minutes_index = 0
 	
 	def set_agenda_to(self, name: str) -> bool:
 		if name in self.agenda_order:
@@ -250,18 +252,6 @@ server_data = {}
 
 # flag to signal if a server is done setting up
 running = False
-
-# used for keeping track of agenda notetaking orders for a server
-# maps a discord server / guild to a list of strings of names
-agenda = {}
-# maps a discord server / guild to an index in the agenda list for that server
-agenda_index = {}
-
-# used for keeping track of meeting minutes notetaking orders for a server
-# maps a discord server / guild to a list of strings of names
-minutes = {}
-# maps a discord server / guild to an index in the meeting minutes list for that server
-minutes_index = {}
 
 # called as soon as the bot is fully online and operational
 @client.event
@@ -326,12 +316,6 @@ async def startup_server(server):
 	# initialize this server's data
 	# TODO: make it so this reads from files instead of initializing everything to nothing
 	server_data[server] = ServerData(server)
-	
-	# set the lists of meetings for this server to an empty list
-	agenda[server] = []
-	agenda_index[server] = 0
-	minutes[server] = []
-	minutes_index[server] = 0
 
 # sets up the bot for a new server every time it joins one while running
 @client.event
@@ -344,14 +328,6 @@ async def on_guild_remove(server):
 	# removes server's data from the server_data list of it's in there
 	if server in server_data:
 		server_data.pop(server)
-	if server in agenda:
-		agenda.pop(server)
-	if server in agenda_index:
-		agenda_index.pop(server)
-	if server in minutes:
-		minutes.pop(server)
-	if server in minutes_index:
-		minutes_index.pop(server)
 
 	# TODO: make it so the bot hangs onto a server's data for a day before it deletes it
 	# gets the path to the server's data folder
@@ -811,7 +787,7 @@ async def meetings_command(message):
 		reply = '```One-Time Meetings```\n'
 		
 		# if there are no one time meetings
-		if len(server_data[message.guild].meetings) == 0:
+		if len(server_data[message.guild].meetings) < 1:
 			reply += '**No meetings.**\n\n'
 		# if there is at least 1 meeting
 		else:
@@ -830,7 +806,7 @@ async def meetings_command(message):
 		reply += '```Weekly Meetings```\n'
 
 		# if there are no weekly meetings
-		if len(server_data[message.guild].weekly_meetings) == 0:
+		if len(server_data[message.guild].weekly_meetings) < 1:
 			reply += '**No weekly meetings.**\n'
 		# if there is at least 1 weekly meeting
 		else:
@@ -881,12 +857,10 @@ async def set_command(message, command):
 			
 			# if agenda list was passed as an argument, set the agenda list to the new list
 			if command[1] == 'agenda':
-				agenda[message.guild] = name_list
-				agenda_index[message.guild] = 0
+				server_data[message.guild].set_agenda_order(name_list)
 			# if the minutes list was passed as an argument, set the agenda list to the new list
 			elif command[1] == 'minutes':
-				minutes[message.guild] = name_list
-				minutes_index[message.guild] = 0
+				server_data[message.guild].set_minutes_order(name_list)
 			# if the argument isn't recognized
 			else:
 				await react_with_x(message)
@@ -904,14 +878,11 @@ async def set_command(message, command):
 				for token in command[4:]:
 					name += ' ' + token
 				
-				# if that name is not in the agenda list
-				if name not in agenda[message.guild]:
+				# if that name is in the agenda list
+				if server_data[message.guild].set_agenda_to(name):
+					await react_with_check(message)
+				else:
 					await react_with_x(message)
-					return
-				
-				# set the index of the current person on agenda duty to the name passed as an argument
-				agenda_index[message.guild] = agenda[message.guild].index(name)
-				await react_with_check(message)
 			# if the minutes list was passed as an argument
 			elif command[1] == 'minutes':
 				# rebuild the name of the person passed as an argument into a string
@@ -919,15 +890,11 @@ async def set_command(message, command):
 				for token in command[4:]:
 					name += ' ' + token
 				
-				# if that name is not in the minutes list
-				if name not in minutes[message.guild]:
+				# if that name is in the minutes list
+				if server_data[message.guild].set_minutes_to(name):
+					await react_with_check(message)
+				else:
 					await react_with_x(message)
-					return
-				
-				# set the index of the current person on meeting minutes duty to the name passed as an argument
-				minutes_index[message.guild] = minutes[message.guild].index(name)
-				await react_with_check(message)
-			# if the argument isn't recognized
 			else:
 				await react_with_x(message)
 		# if the command is not valid
@@ -941,24 +908,36 @@ async def noteorder_command(message):
 	if channel_perms.send_messages:
 		up_next = '  <-- Up Next'
 		reply = '```Agenda Duty:```\n'
-
-		# display the list of people on agenda duty
-		for i in range(len(agenda[message.guild])):
-			reply += f'**{i + 1}. {agenda[message.guild][i]}**'
-			# if the person that was just printed is up next, put an arrow and some text next to their name to say so
-			if i == agenda_index[message.guild]:
-				reply += up_next
-			
-			reply += '\n\n'
+		
+		# if the agenda duty list is empty
+		if len(server_data[message.guild].agenda_order) < 1:
+			reply += '**No agenda duty list**\n\n'
+		# if there is anyone on the agenda duty list
+		else:
+			# display the list of people on agenda duty
+			for i in range(len(server_data[message.guild].agenda_order)):
+				reply += f'**{i + 1}. {server_data[message.guild].agenda_order[i]}**'
+				# if the person that was just printed is up next, put an arrow and some text next to their name to say so
+				if i == server_data[message.guild].agenda_index:
+					reply += up_next
+				
+				reply += '\n\n'
 		
 		reply += '```Meeting Minutes Duty:```\n'
 
-		# display the list of people on meeting minutes duty
-		for i in range(len(minutes[message.guild])):
-			reply += f'**{i + 1}. {minutes[message.guild][i]}**'
-			# if the person that was just printed is up next, put an arrow and some text next to their name to say so
-			if i == minutes_index[message.guild]:
-				reply += up_next
+		# if the meeting minutes duty list is empty
+		if len(server_data[message.guild].minutes_order) < 1:
+			reply += '**No meeting minutes duty list**\n'
+		# if there is anyone on the meeting minutes duty list
+		else:
+			# display the list of people on meeting minutes duty
+			for i in range(len(server_data[message.guild].minutes_order)):
+				reply += f'**{i + 1}. {server_data[message.guild].minutes_order[i]}**'
+				# if the person that was just printed is up next, put an arrow and some text next to their name to say so
+				if i == server_data[message.guild].minutes_index:
+					reply += up_next
+				
+				reply += '\n\n'
 		
 		await safe_reply(message, reply)
 	# if the bot doesn't have permission to send message in the channel of the message
