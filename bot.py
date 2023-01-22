@@ -208,6 +208,8 @@ class ServerData:
 		self.minutes_order = names
 		self.minutes_index = 0
 	
+	# sets the agenda index to the inputted name at that index
+	# returns true if the name was found, false if it wasn't
 	def set_agenda_to(self, name: str) -> bool:
 		if name in self.agenda_order:
 			self.agenda_index = self.agenda_order.find(name)
@@ -215,12 +217,24 @@ class ServerData:
 		else:
 			return False
 	
+	# sets the minutes index to the inputted name at that index
+	# returns true if the name was found, false if it wasn't
 	def set_minutes_to(self, name: str) -> bool:
 		if name in self.minutes_order:
 			self.minutes_index = self.minutes_order.find(name)
 			return True
 		else:
 			return False
+	
+	# sets the agenda duty list to an empty list and the agenda index to 0
+	def clear_agenda_order(self):
+		self.agenda_order = []
+		self.agenda_index = 0
+	
+	# sets the meeting minutes duty list to an empty list and the minutes index to 0
+	def clear_minutes_order(self):
+		self.minutes_order = []
+		self.minutes_index = 0
 
 ########################################################################################################################
 #
@@ -483,7 +497,7 @@ async def help_command(message, command = ''):
 		# if the info on the remove command was requested
 		elif command == 'remove':
 			# list of string lines that the bot will reply to the help command with
-			help_reply = f'`{command}:` Removes a meeting or a birthday from the bot.\n\n'
+			help_reply = f'`{command}:` Removes a meeting, a birthday, or clear the agenda or meeting minutes duty list from the bot.\n\n'
 
 			help_reply += '```Usages:```\n'
 
@@ -501,6 +515,12 @@ async def help_command(message, command = ''):
 			help_reply += f'**{desktop_prefix} remove weekly meetings [meeting number(s)]**\n'
 			help_reply += 'Same as above.\n\n'
 
+			help_reply += f'**{desktop_prefix} remove agenda**\n'
+			help_reply += 'Clears the agenda notetaking duty list.\n\n'
+
+			help_reply += f'**{desktop_prefix} remove minutes**\n'
+			help_reply += 'Clears the meeting minutes notetaking duty list.\n\n'
+
 			help_reply += f'**{desktop_prefix} remove bday on [date] for [name]**\n'
 			help_reply += 'This will remove a birthday on [date] for the person named [name].\n'
 			help_reply += 'Note: You can see which birthdays have been added with the "bdays" command.\n\n'
@@ -512,9 +532,11 @@ async def help_command(message, command = ''):
 
 			help_reply += f'{desktop_prefix} remove meeting 1\n'
 			help_reply += f'{desktop_prefix} remove weekly meeting 2 6 4\n'
+			help_reply += f'{desktop_prefix} remove agenda\n'
 			help_reply += f'{desktop_prefix} remove bday on 1/7 for Chandler\n'
 			help_reply += f'{desktop_prefix} remove meetings 7 3 5\n'
 			help_reply += f'{desktop_prefix} remove weekly meetings 8\n'
+			help_reply += f'{desktop_prefix} remove minutes\n'
 			help_reply += f'{desktop_prefix} remove bday on 12-1 for Josh\n'
 
 			await safe_reply(message, help_reply)
@@ -765,16 +787,30 @@ async def remove_command(message, command):
 	if channel_perms.add_reactions:
 		# if the command follows the format "remove meeting(s) # # # ..."
 		if len(command) > 2 and (command[1].lower() == 'meeting' or command[1].lower() == 'meetings'):
+			# remove the meetings with the inputted numbers if all of the inputted numbers are valid
 			if server_data[message.guild].remove_meetings(command[2:]):
 				await react_with_check(message)
+			# if any of the inputted numbers are not valid
 			else:
 				await react_with_x(message)
 		# if the command follows the format "remove weekly meeting(s) # # # ..."
 		elif len(command) > 3 and command[1].lower() == 'weekly' and (command[2].lower() == 'meeting' or command[2].lower() == 'meetings'):
+			# remove the weekly meetings with the inputted numbers if all of the inputted numbers are valid
 			if server_data[message.guild].remove_weekly_meetings(command[3:]):
 				await react_with_check(message)
+			# if any of the inputted numbers are not valid
 			else:
 				await react_with_x(message)
+		# if the command follows the format "remove agenda"
+		elif len(command) > 1 and command[1].lower() == 'agenda':
+			# clear the server's agenda duty list
+			server_data[message.guild].clear_agenda_order()
+			await react_with_check(message)
+		# if the command follows the format "remove minutes"
+		elif len(command) > 1 and command[1].lower() == 'minutes':
+			# clear the server's meeting minutes duty list
+			server_data[message.guild].clear_minutes_order()
+			await react_with_check(message)
 		# if the command isn't recognized
 		else:
 			await react_with_x(message)
