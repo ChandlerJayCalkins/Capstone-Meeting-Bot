@@ -10,6 +10,10 @@
 #	Mention Everyone
 #	Add Reactions
 
+# file extension meaings:
+#	.lst - list files (contain lists of plaintext data separated by line breaks)
+#	.cfg - configuration files (settings)
+
 import discord
 import os
 import shutil
@@ -32,12 +36,14 @@ class ServerData:
 		self.agenda_index = 0
 		self.minutes_order = []
 		self.minutes_index = 0
+		self.next_meeting = None
+		self.next_weekly_meeting = None
 	
 	# adds a meeting time to the meeting list in sorted order with a binary search
 	# returns true if the meeting was added to the list, false if that time is already in the list
 	def add_meeting(self, time: datetime.datetime) -> bool:
 		# if the meeting list is empty, just add the meeting to the list
-		if len(meetings) == 0:
+		if len(self.meetings) == 0:
 			self.meetings.append(time)
 		# if there's only 1 item in the list
 		elif len(self.meetings) == 1:
@@ -89,7 +95,7 @@ class ServerData:
 	# returns true if the meeting was added to the list, false if that time is already in the list
 	def add_weekly_meeting(self, time: datetime.datetime) -> bool:
 		# if the meeting list is empty, just add the meeting to the list
-		if len(meetings) == 0:
+		if len(self.meetings) == 0:
 			self.weekly_meetings.append(time)
 		# if there's only 1 item in the list
 		elif len(self.weekly_meetings) == 1:
@@ -110,25 +116,25 @@ class ServerData:
 				# get mid point of remaining list to check
 				mid = (high - low) // 2 + low
 				# if the time is less than the mid point, remove the upper half of the remaining list to check
-				if time < self.weekly_meetings[mid]:
+				if time.weekday() < self.weekly_meetings[mid].weekday():
 					high = mid - 1
 				# if the time is greater than the mid point, remove the lower half of the remaining list to check
-				elif time > self.weekly_meetings[mid]:
+				elif time.weekday() > self.weekly_meetings[mid].weekday():
 					low = mid + 1
 				# if the time is a duplicate
 				else:
 					return False
 			
 			# if the time is between the last 2 items
-			if time > self.weekly_meetings[low] and time < self.weekly_meetings[high]:
+			if time.weekday() > self.weekly_meetings[low].weekday() and time.weekday() < self.weekly_meetings[high].weekday():
 				# insert the time between those 2 items
 				self.weekly_meetings.insert(high, time)
 			# if the time is less than the lower last item
-			elif time < self.weekly_meetings[low]:
+			elif time.weekday() < self.weekly_meetings[low].weekday():
 				# insert the time in front of that item
 				self.weekly_meetings.insert(low, time)
 			# if the time is greater than the higher last item
-			elif time > self.weekly_meetings[high]:
+			elif time.weekday() > self.weekly_meetings[high].weekday():
 				# insert the time after that item
 				self.weekly_meetings.insert(high + 1, time)
 			# if the time is equal to one of those times
@@ -137,8 +143,8 @@ class ServerData:
 		
 		return True
 	
-	# removes meetings from a list of meetings given a list of arguments of the meetings' numbers
-	# returns true if all of the meetings were successfully removed, returns false if one of the meeting numbers wasn't valid
+	# removes meetings from the server's list of meetings given a list of arguments of the meetings' numbers
+	# returns true if all of the meetings were successfully removed, returns false if any of the meeting numbers wasn't valid
 	def remove_meetings(self, meeting_numbers: list) -> bool:
 		meeting_indexes = []
 		# loop through each argument
@@ -164,6 +170,33 @@ class ServerData:
 		
 		return True
 	
+	# removes weekly meetings from the server's list of weekly meetings given a list of arguments of the meetings' numbers
+	# returns true if all of the meetings were successfully removed, returns false if any of the meeting numbers wasn't valid
+	def remove_weekly_meetings(self, meeting_numbers: list) -> bool:
+		meeting_indexes = []
+		# loop through each argument
+		for arg in meeting_numbers:
+			# if the argument is a positive integer
+			if arg.isnumeric():
+				# turn the argument into a number
+				index = int(arg)
+				# if the number is between 1 and the last weekly meeting number
+				if index >= 1 and index  <= len(self.weekly_meetings):
+					# add that number to a list of indexes to remove
+					meeting_indexes.append(index)
+					continue
+			
+			# if any of the arguments aren't valid
+			return False
+		
+		# sort the list of indexes in reverse order because the right indexes will change while they're being removed if they're iterated through ascending order
+		meeting_indexes.sort(reverse=True)
+		# remove each meeting from the list in reverse order
+		for i in meeting_indexes:
+			self.weekly_meetings.pop(i - 1)
+		
+		return True
+	
 	# sets the agenda notetaking order to a given list of names
 	def set_agenda_order(self, names: list):
 		self.agenda_order = names
@@ -185,130 +218,6 @@ class ServerData:
 			return True
 		else:
 			return False
-
-# class for holding time data for weekly meetings
-class WeeklyTime:
-	# constructor
-	def __init__(self, day, hour, minute):
-		self.day = day
-		self.hour = hour
-		self.minute = minute
-		# converts number 0 - 6 to string Monday - Sunday
-		self.day_str = num_to_day(day)
-		self.hour_str_24hr = str(hour)
-		# converts converts 24 hour time number to 12 hour time number
-		self.hour_str_12hr = str(WeeklyTime._to_12hr(hour))
-		# stores am / pm for 12 hour time
-		if hour < 12:
-			self.ampm = 'am'
-		else:
-			self.ampm = 'pm'
-		# makes sure minutes get an extra 0 in front of them if they're only 1 digit
-		if minute < 10:
-			self.minute_str = '0' + str(minute)
-		else:
-			self.minute_str = str(minute)
-	
-	# convert to string
-	def __str__(self):
-		return f'{self.day_str}s at {self.hour_str_24hr}:{self.minute_str} / {self.hour_str_12hr}:{self.minute_str} {self.ampm}'
-	
-	# less than < operator overload
-	def __lt__(self, other) -> bool:
-		# if the self day is sooner than the other day
-		if self.day < other.day:
-			return True
-		# if the self day is later than the other day
-		elif self.day > other.day:
-			return False
-		# if the days are equal
-		else:
-			# if the self hour is sooner than the other hour
-			if self.hour < other.hour:
-				return True
-			# if the self hour is later than the other hour
-			elif self.hour > other.hour:
-				return False
-			# if the hours are equal
-			else:
-				return self.minute < other.minute
-	
-	# greater than > operator overload
-	def __gt__(self, other) -> bool:
-		# if the self day is later than the other day
-		if self.day > other.day:
-			return True
-		# if the self day is sooner than the other day
-		elif self.day < other.day:
-			return False
-		# if the days are equal
-		else:
-			# if the self hour is later than the other hour
-			if self.hour > other.hour:
-				return True
-			# if the self hour is sooner than the other hour
-			elif self.hour < other.hour:
-				return False
-			# if the hours are equal
-			else:
-				return self.minute > other.minute
-	
-	# less than or equal to <= operator overload
-	def __le__(self, other) -> bool:
-		# if the self day is sooner than the other day
-		if self.day < other.day:
-			return True
-		# if the self day is later than the other day
-		elif self.day > other.day:
-			return False
-		# if the days are equal
-		else:
-			# if the self hour is sooner than the other hour
-			if self.hour < other.hour:
-				return True
-			# if the self hour is later than the other hour
-			elif self.hour > other.hour:
-				return False
-			# if the hours are equal
-			else:
-				return self.minute <= other.minute
-	
-	# greater than or equal to >= operator overload
-	def __ge__(self, other) -> bool:
-		# if the self day is later than the other day
-		if self.day > other.day:
-			return True
-		# if the self day is sooner than the other day
-		elif self.day < other.day:
-			return False
-		# if the days are equal
-		else:
-			# if the self hour is later than the other hour
-			if self.hour > other.hour:
-				return True
-			# if the self hour is sooner than the other hour
-			elif self.hour < other.hour:
-				return False
-			# if the hours are equal
-			else:
-				return self.minute >= other.minute
-	
-	# equal to == operator overload
-	def __eq__ (self, other) -> bool:
-		return self.day == other.day and self.hour == other.hour and self.minute == other.minute
-	
-	# not equal to != operator overload
-	def __ne__ (self, other) -> bool:
-		return self.day != other.day or self.hour != other.hour or self.minute != other.minute
-	
-	# takes a 24 hour number and returns a 12 hour number
-	def _to_12hr(hour):
-		if hour > 12:
-			return hour - 12
-		elif hour == 0:
-			return 12
-		else:
-			return hour
 
 ########################################################################################################################
 #
@@ -334,13 +243,9 @@ mobile_prefix = ""
 # root directory of all server data
 server_root = 'servers'
 
-# used for keeping track of one-time meetings for each server
-# maps a discord server / guild to a list of datetime objects
-meetings = {}
-
-# used for keeping track of weekly meetings for each server
-# maps a discord server / guild to a list of WeeklyTime objects
-weekly_meetings = {}
+# used for keeping track of each server's meeting / noteorders etc.
+# maps a discord guild object to a ServerData object
+server_data = {}
 
 # used for keeping track of agenda notetaking orders for a server
 # maps a discord server / guild to a list of strings of names
@@ -394,10 +299,11 @@ async def startup_server(server):
 	if not os.path.isfile(meetings_file):
 		Path(meetings_file).touch()
 	
+	# initialize this server's data
+	# TODO: make it so this reads from files instead of initializing everything to nothing
+	server_data[server] = ServerData(server)
+	
 	# set the lists of meetings for this server to an empty list
-	# TODO: make it so these read from a file that store the meetings to initialize the lists instead
-	meetings[server] = []
-	weekly_meetings[server] = []
 	agenda[server] = []
 	agenda_index[server] = 0
 	minutes[server] = []
@@ -412,13 +318,12 @@ async def on_guild_join(server):
 @client.event
 async def on_guild_remove(server):
 	# removes server's meeting entries in ram
-	meetings.pop(server)
-	weekly_meetings.pop(server)
 	agenda.pop(server)
 	agenda_index.pop(server)
 	minutes.pop(server)
 	minutes_index.pop(server)
 
+	# TODO: make it so the bot hangs onto a server's data for a day before it deletes it
 	# gets the path to the server's data folder
 	server_folder = get_server_folder_name(server)
 	# deletes the folder and all files in it
@@ -435,85 +340,6 @@ def get_server_folder_name(server) -> str:
 	# server's data folder path
 	server_folder = f'{server_root}/{server.id}-{server_name}'
 	return server_folder
-
-# adds a weekly meeting time to a weekly meeting list in sorted order with a binary search
-# returns true if the meeting was added to the list, false if that time is already in the list
-def add_meeting(meetings: list, time) -> bool:
-	# if the meeting list is empty, just add the meeting to the list
-	if len(meetings) == 0:
-		meetings.append(time)
-	# if there's only 1 item in the list
-	elif len(meetings) == 1:
-		if time < meetings[0]:
-			meetings.insert(0, time)
-		elif time > meetings[0]:
-			meetings.append(time)
-		# if the time is a duplicate
-		else:
-			return False
-	# if the list has at least 2 meetings, do a binary insert
-	else:
-		# start by checking entire list
-		low = 0
-		high = len(meetings) - 1
-		# while there are more than 2 more list items to check
-		while high - low > 1:
-			# get mid point of remaining list to check
-			mid = (high - low) // 2 + low
-			# if the time is less than the mid point, remove the upper half of the remaining list to check
-			if time < meetings[mid]:
-				high = mid - 1
-			# if the time is greater than the mid point, remove the lower half of the remaining list to check
-			elif time > meetings[mid]:
-				low = mid + 1
-			# if the time is a duplicate
-			else:
-				return False
-		
-		# if the time is between the last 2 items
-		if time > meetings[low] and time < meetings[high]:
-			# insert the time between those 2 items
-			meetings.insert(high, time)
-		# if the time is less than the lower last item
-		elif time < meetings[low]:
-			# insert the time in front of that item
-			meetings.insert(low, time)
-		# if the time is greater than the higher last item
-		elif time > meetings[high]:
-			# insert the time after that item
-			meetings.insert(high + 1, time)
-		# if the time is equal to one of those times
-		else:
-			return False
-	
-	return True
-
-# removes meetings from a list of meetings given a list of arguments of the meetings' numbers
-# returns true if all of the meetings were successfully removed, returns false if one of the meeting numbers wasn't valid
-def remove_meetings(meetings: list, meeting_numbers: list) -> bool:
-	meeting_indexes = []
-	# loop through each argument
-	for arg in meeting_numbers:
-		# if the argument is a positive integer
-		if arg.isnumeric():
-			# turn the argument into a number
-			index = int(arg)
-			# if the number is between 1 and the last weekly meeting number
-			if index >= 1 and index  <= len(meetings):
-				# add that number to a list of indexes to remove
-				meeting_indexes.append(index)
-				continue
-		
-		# if any of the arguments aren't valid
-		return False
-	
-	# sort the list of indexes in reverse order because the right indexes will change while they're being removed if they're iterated through ascending order
-	meeting_indexes.sort(reverse=True)
-	# remove each meeting from the list in reverse order
-	for i in meeting_indexes:
-		meetings.pop(i - 1)
-	
-	return True
 
 ########################################################################################################################
 #
@@ -765,7 +591,7 @@ async def help_command(message, command = ''):
 		# if no argument was given or it isn't recognized
 		else:
 			# list of commands that the bot has
-			command_list = ['help', 'add', 'remove', 'meetings', 'set', 'noteorder', 'bdays']
+			command_list = ['help', 'add', 'remove', 'meetings', 'set', 'noteorder', 'alert', 'bdays']
 			# list of string lines that the bot will reply to the help command with
 			help_reply = f'`Usage:` **{desktop_prefix} [command] [argument argument argument...]**\n\n'
 			help_reply += f'Type "{desktop_prefix} help [command]" to get more info on how to use a specific command.\n\n'
@@ -844,6 +670,7 @@ async def add_command(message, command):
 				if valid_date(day, month):
 					now = datetime.datetime.now()
 					meeting = datetime.datetime(now.year, month, day, hour=hour, minute=minute)
+					# if the meeting date is before now, increment it by a year
 					if meeting < now:
 						meeting = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute)
 				else:
@@ -861,7 +688,7 @@ async def add_command(message, command):
 			# add meeting to list
 
 			# if the meeting time is successfully added to the list in order and is not a duplicate
-			if add_meeting(meetings[message.guild], meeting):
+			if server_data[message.guild].add_meeting(meeting):
 				await react_with_check(message)
 			else:
 				await react_with_x(message)
@@ -892,11 +719,27 @@ async def add_command(message, command):
 				await react_with_x(message)
 				return
 			
+			# convert weekday to next datetime on that weekday
+
+			# set meeting time to today at the inputted hour and minute by default
+			now = datetime.datetime.now()
+			meeting_time = datetime.datetime(now.year, now.month, now.day, hour=hour, minute=minute)
+			# if the meeting weekday is later in the week
+			if day > now.weekday():
+				# set the meeting time to the right day later this week
+				delta = datetime.timedelta(days=(day - now.weekday()))
+				meeting_time += delta
+			# if the meeting weekday is earlier in the week or on the same day but at an earlier time in the day
+			elif day < now.weekday() or (day == now.weekday() and (hour < now.hour or (hour == now.hour and minute <= now.minute))):
+				# set the meeting time to the right day next week
+				meeting_time = datetime.datetime(now.year, now.month, now.day, hour=hour, minute=minute)
+				delta = datetime.timedelta(days=(7 - now.weekday() + day))
+				meeting_time += delta
+			
 			# add day and time to list
 
-			meeting_time = WeeklyTime(day, hour, minute)
 			# if the meeting time is successfully added to the list in order and is not a duplicate
-			if add_meeting(weekly_meetings[message.guild], meeting_time):
+			if server_data[message.guild].add_weekly_meeting(meeting):
 				await react_with_check(message)
 			else:
 				await react_with_x(message)
@@ -915,13 +758,13 @@ async def remove_command(message, command):
 	if channel_perms.add_reactions:
 		# if the command follows the format "remove meeting(s) # # # ..."
 		if len(command) > 2 and (command[1].lower() == 'meeting' or command[1].lower() == 'meetings'):
-			if remove_meetings(meetings[message.guild], command[2:]):
+			if server_data[message.guild].remove_meetings(command[2:]):
 				await react_with_check(message)
 			else:
 				await react_with_x(message)
 		# if the command follows the format "remove weekly meeting(s) # # # ..."
 		elif len(command) > 3 and command[1].lower() == 'weekly' and (command[2].lower() == 'meeting' or command[2].lower() == 'meetings'):
-			if remove_meetings(weekly_meetings[message.guild], command[3:]):
+			if server_data[message.guild].remove_weekly_meetings(command[3:]):
 				await react_with_check(message)
 			else:
 				await react_with_x(message)
@@ -937,32 +780,36 @@ async def meetings_command(message):
 		reply = '```One-Time Meetings```\n'
 		
 		# if there are no one time meetings
-		if len(meetings[message.guild]) == 0:
+		if len(server_data[message.guild].meetings) == 0:
 			reply += '**No meetings.**\n\n'
 		# if there is at least 1 meeting
 		else:
 			# display all of the meetings in a numbered list
-			for i in range(len(meetings[message.guild])):
+			for i in range(len(server_data[message.guild].meetings)):
 				# Why the actual fuck would you change the grammar of a damn language depending on the operating system
 				# What. The. Fuck.
 				# Who is responsible for making this function and how the fuck were they allowed to contribute to python in the first place
 				# What else has this individual / these individuals fucked up with this language
 				# Linux version:
-				# meeting_str = meetings[message.guild][i].strftime('%A %b %-d %Y at %-H:%M / %-I:%M %p')
+				# meeting_str = server_data[message.guild].meetings[i].strftime('%A %b %-d %Y at %-H:%M / %-I:%M %p')
 				# Windows version:
-				meeting_str = meetings[message.guild][i].strftime('%A %b %#d %Y at %#H:%M / %#I:%M %p')
+				meeting_str = server_data[message.guild].meetings[i].strftime('%A %b %#d %Y at %#H:%M / %#I:%M %p')
 				reply += f'**{i+1}. {meeting_str}**\n\n'
 
 		reply += '```Weekly Meetings```\n'
 
 		# if there are no weekly meetings
-		if len(weekly_meetings[message.guild]) == 0:
+		if len(server_data[message.guild].weekly_meetings) == 0:
 			reply += '**No weekly meetings.**\n'
 		# if there is at least 1 weekly meeting
 		else:
 			# display all of the weekly meetings in a numbered list
-			for i in range(len(weekly_meetings[message.guild])):
-				reply += f'**{i+1}. {weekly_meetings[message.guild][i]}**\n\n'
+			for i in range(len(server_data[message.guild].weekly_meetings)):
+				# Linux version:
+				# meeting_str = server_data[message.guild].weekly_meetings[i].strftime('%As at %-H:%M / %-I:%M %p')
+				# Windows version:
+				meeting_str = server_data[message.guild].weekly_meetings[i].strftime('%As at %#H:%M / %#I:%M %p')
+				reply += f'**{i+1}. {meeting_str}**\n\n'
 		
 		await safe_reply(message, reply)
 	# if the bot doesn't have permission to send message in the channel, react to the message with an x
@@ -1152,9 +999,6 @@ async def safe_reply(message, reply: str):
 
 # returns whether or not a string is a day of the week
 
-def is_sunday(token: str) -> bool:
-	return token.lower() == 'su' or token.lower() == 'sun' or token.lower() == 'sunday' or token.lower() == 'sundays'
-
 def is_monday(token: str) -> bool:
 	return token.lower() == 'm' or token.lower() == 'mon' or token.lower() == 'monday' or token.lower() == 'mondays'
 
@@ -1173,41 +1017,25 @@ def is_friday(token: str) -> bool:
 def is_saturday(token: str) -> bool:
 	return token.lower() == 'sa' or token.lower() == 'sat' or token.lower() == 'saturday' or token.lower() == 'saturdays'
 
+def is_sunday(token: str) -> bool:
+	return token.lower() == 'su' or token.lower() == 'sun' or token.lower() == 'sunday' or token.lower() == 'sundays'
+
 # converts a string of a day sunday to saturday to a number 0 to 6
 def day_to_num(day: str):
-	if is_sunday(day):
+	if is_monday(day):
 		return 0
-	elif is_monday(day):
-		return 1
 	elif is_tuesday(day):
-		return 2
+		return 1
 	elif is_wednesday(day):
-		return 3
+		return 2
 	elif is_thursday(day):
-		return 4
+		return 3
 	elif is_friday(day):
-		return 5
+		return 4
 	elif is_saturday(day):
+		return 5
+	elif is_sunday(day):
 		return 6
-	else:
-		return None
-
-# converts a number 0 to 6 to a day of the week sunday to saturday
-def num_to_day(num: int):
-	if num == 0:
-		return 'Sunday'
-	elif num == 1:
-		return 'Monday'
-	elif num == 2:
-		return 'Tuesday'
-	elif num == 3:
-		return 'Wednesday'
-	elif num == 4:
-		return 'Thursday'
-	elif num == 5:
-		return 'Friday'
-	elif num == 6:
-		return 'Saturday'
 	else:
 		return None
 
