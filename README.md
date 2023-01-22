@@ -3,7 +3,9 @@ Discord bot that keeps track of Senior Engineering Capstone Design meetings and 
 
 # Required Discord Libraries for this Bot
 - pip install discord
+
 or
+
 - pip install discord\[voice\]
 
 # Required Permissions for the Bot
