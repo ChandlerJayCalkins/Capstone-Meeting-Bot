@@ -27,6 +27,24 @@ from pathlib import Path
 #
 ########################################################################################################################
 
+# class for storing bday dates and names
+class BDay:
+	def __init__(self, date: datetime.date, name: str):
+		self.date = date
+		self.name = name
+	
+	def __str__(self):
+		# Linux version:
+		# date_str = self.date.strftime('%b %-d')
+		# Windows version:
+		date_str = self.date.strftime('%b %#d')
+		bday_str = f'{self.name}: {date_str}'
+		return bday_str
+	
+	def __eq__(self, other) -> bool:
+		return self.date == other.date and self.name == other.name
+
+
 # class for storing a server's data (like agenda order list and meeting times)
 class ServerData:
 	def __init__(self, server):
@@ -41,6 +59,7 @@ class ServerData:
 		self.next_weekly_meeting = None
 		# set the meeting / bday alert channel to the first channel that the bot has message sending permissions in
 		self.alert_channel = self.find_first_message_channel()
+		self.bdays = []
 	
 	# adds a meeting time to the meeting list in sorted order with a binary search
 	# returns true if the meeting was added to the list, false if that time is already in the list
@@ -146,6 +165,65 @@ class ServerData:
 		
 		return True
 	
+	# adds a birthday to the bday list in sorted order with a binary search
+	# returns true if the bday was added to the list, false if a bday on the same day for the same name is already in the list
+	def add_bday(self, bday: BDay) -> bool:
+		# if the bday is empty, just add the bday to the list
+		if len(self.bdays) == 0:
+			self.bdays.append(bday)
+		# if there's only 1 item in the list
+		elif len(self.bdays) == 1:
+			if bday.date < self.bdays[0].date:
+				self.bdays.insert(0, bday)
+			elif bday.date > self.bdays[0].date:
+				self.bdays.append(bday)
+			# if the bday is on the same day but has a different name
+			elif bday.name != self.bdays[0].name:
+				self.bdays.append(bday)
+			# if the bday is on the same day and has the same name as the other bday
+			else:
+				return False
+		# if the list has at least 2 bdays, do a binary insert
+		else:
+			# start by checking entire list
+			low = 0
+			high = len(self.bdays) - 1
+			# while there are more than 2 more list items to check
+			while high - low > 1:
+				# get mid point of remaining list to check
+				mid = (high - low) // 2 + low
+				# if the date is less than the mid point, remove the upper half of the remaining list to check
+				if bday.date < self.bdays[mid].date:
+					high = mid - 1
+				# if the date is greater than the mid point, remove the lower half of the remaining list to check
+				elif bday.date > self.bdays[mid].date:
+					low = mid + 1
+				# if the bday is a duplicate
+				else:
+					return False
+			
+			# if the date is between the last 2 items
+			if bday.date > self.bdays[low].date and bday.date < self.bdays[high].date:
+				# insert the bday between those 2 items
+				self.bdays.insert(high, bday)
+			# if the date is less than the lower last item
+			elif bday.date < self.bdays[low].date:
+				# insert the bday in front of that item
+				self.bdays.insert(low, bday)
+			# if the date is greater than the higher last item
+			elif bday.date > self.bdays[high].date:
+				# insert the bday after that item
+				self.bdays.insert(high + 1, bday)
+			# if the bday is on the same day as another one but has a different name
+			elif bday.name != self.bdays[low].name or bday.name != self.bdays[high].name:
+				# insert the bday at the higher bday
+				self.bdays.insert(high, bday)
+			# if the bday is on the same day and has the same name as another bday
+			else:
+				return False
+		
+		return True
+	
 	# removes meetings from the server's list of meetings given a list of arguments of the meetings' numbers
 	# returns true if all of the meetings were successfully removed, returns false if any of the meeting numbers wasn't valid
 	def remove_meetings(self, meeting_numbers: list) -> bool:
@@ -199,6 +277,19 @@ class ServerData:
 			self.weekly_meetings.pop(i - 1)
 		
 		return True
+	
+	# removes a birthday from the server's list of birthdays given a bday object
+	# returns true if the bday was found and removed, false if it wasn't
+	def remove_bday(self, bday: BDay) -> bool:
+		# if the bday is in the list
+		if bday in self.bdays:
+			# remove it from the list and return true
+			index = self.bdays.index(bday)
+			self.bdays.pop(index)
+			return True
+		# if the bday is not in the list
+		else:
+			return False
 	
 	# sets the agenda notetaking order to a given list of names
 	def set_agenda_order(self, names: list):
@@ -430,6 +521,9 @@ async def on_message(message):
 			# if it's the alert command
 			elif command[0] == 'alert':
 				await alert_command(message, command)
+			# if it's the bdays command
+			elif command[0] == 'bdays':
+				await bdays_command(message)
 			else:
 				await help_command(message)
 		# if the bot was @'d with no command
@@ -627,7 +721,7 @@ async def help_command(message, command = ''):
 			help_reply += '```Usages:```\n'
 
 			help_reply += f'**{desktop_prefix} alert here**\n'
-			help_reply += 'This will set the channel that the bot sends meeting and birthday alerts in to the channel that the command was sent in\n\n.'
+			help_reply += 'This will set the channel that the bot sends meeting and birthday alerts in to the channel that the command was sent in.\n\n'
 
 			help_reply += f'**{desktop_prefix} alert channel**\n'
 			help_reply += 'This will display what channel the bot is currently using as the alert channel.'
@@ -650,7 +744,7 @@ async def help_command(message, command = ''):
 			# list of commands that the bot has
 			command_list = ['help', 'add', 'remove', 'meetings', 'set', 'dutyorder', 'alert', 'bdays']
 			# list of string lines that the bot will reply to the help command with
-			help_reply = f'`Usage:` **{desktop_prefix} [command] [argument argument argument...]**\n\n'
+			help_reply = f'`Usage:` **{desktop_prefix} [command] [arguments...]**\n\n'
 			help_reply += f'Type "{desktop_prefix} help [command]" to get more info on how to use a specific command.\n\n'
 			help_reply += f'```List of commands:```\n'
 			# add a numbered line for each command the bot has
@@ -670,44 +764,17 @@ async def add_command(message, command):
 		# if the command follows the format "add meeting on *day* at *time"
 		if len(command) > 5 and command[1].lower() == 'meeting' and command[2].lower() == 'on' and command[4].lower() == 'at':
 			# extract date
-
-			date_nums = []
-			# if the date uses slashes
-			if '/' in command[3] and not '-' in command[3]:
-				# split the string by slashes
-				date_nums = command[3].split('/')
-			# if the date uses dashes
-			elif '-' in command[3] and not '/' in command[3]:
-				# split the string by dashes
-				date_nums = command[3].split('-')
-			# if the date argument either has both slashes and dashes or neither
-			else:
+			date_nums = str_to_date_nums(command[3])
+			# if the inputted date is invalid
+			if date_nums is None:
 				await react_with_x(message)
 				return
 			
-			year = None
-			month = None
-			day = None
-			# if there are exactly 2 strings from the split and they are both positive integers
-			if len(date_nums) == 2 and date_nums[0].isnumeric() and date_nums[1].isnumeric():
-				# convert those strings into numbers
-				month = int(date_nums[0])
-				day = int(date_nums[1])
-			# if there are exactly 3 strings from the split and they are all positive integers
-			elif len(date_nums) == 3 and date_nums[0].isnumeric() and date_nums[1].isnumeric() and date_nums[2].isnumeric():
-				# convert those strings into numbers
-				year = int(date_nums[0])
-				month = int(date_nums[1])
-				day = int(date_nums[2])
-			# if the date input is invalid
-			else:
-				await react_with_x(message)
-				return
+			# put date_num variables into more recognizable variable names
+			year, month, day = date_nums
 			
 			# extract time
 
-			hour = None
-			minute = None
 			# if the command has a "pm" or "am" after the time
 			if len(command) > 6:
 				# extract 12 hour time string into 24 hour time numbers
@@ -762,8 +829,6 @@ async def add_command(message, command):
 			
 			# extract time
 
-			hour = 0
-			minute = 0
 			# if the command has a "pm" or "am" after the time
 			if len(command) > 7:
 				# extract 12 hour time string into 24 hour time numbers
@@ -801,9 +866,47 @@ async def add_command(message, command):
 			else:
 				await react_with_x(message)
 		
-		# if the command follows the format "add birthday on *day*"
-		elif len(command) > 3 and command[1].lower() == 'birthday' and command[2].lower() == 'on':
-			return
+		# if the command follows the format "add bday on *day*"
+		elif len(command) > 5 and command[1].lower() == 'bday' and command[2].lower() == 'on' and command[4].lower() == 'for':
+			# extract date
+			date_nums = str_to_date_nums(command[3])
+			if date_nums is None:
+				await react_with_x(message)
+				return
+			
+			# put date_num variables into more recognizable variable names
+			year, month, day = date_nums
+
+			# construct datetime object
+
+			# time of the day that the bot will alert people about the birthday
+			hour = 8
+			minute = 0
+
+			# if the year wasn't inputted
+			if year is None:
+				if valid_date(day, month):
+					now = datetime.datetime.now()
+					meeting = datetime.datetime(now.year, month, day, hour=hour, minute=minute)
+					# if the meeting date is before now, increment it by a year
+					if meeting < now:
+						meeting = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute)
+				else:
+					await react_with_x(message)
+					return
+			# if a year was inputted
+			else:
+				await react_with_x(message)
+				return
+			
+			# create bday object
+			bday = BDay(meeting, ' '.join(command[5:]))
+			# if the bday was successfully added to the bday list
+			if server_data[message.guild].add_bday(bday):
+				await react_with_check(message)
+			# if the bday is a duplicate (same name and date as an existing one)
+			else:
+				await react_with_x(message)
 		# if the command isn't recognized
 		else:
 			await react_with_x(message)
@@ -839,6 +942,47 @@ async def remove_command(message, command):
 			# clear the server's meeting minutes duty list
 			server_data[message.guild].clear_minutes_order()
 			await react_with_check(message)
+		# if the command follows the format "remove bday on [date] for [name]"
+		elif len(command) > 5 and command[1].lower() == 'bday' and command[2].lower() == 'on' and command[4].lower() == 'for':
+			# extract date
+			date_nums = str_to_date_nums(command[3])
+			if date_nums is None:
+				await react_with_x(message)
+				return
+			
+			# put date_num variables into more recognizable variable names
+			year, month, day = date_nums
+
+			# construct datetime object
+
+			# time of the day that the bot will alert people about the birthday
+			hour = 8
+			minute = 0
+
+			# if the year wasn't inputted
+			if year is None:
+				if valid_date(day, month):
+					now = datetime.datetime.now()
+					meeting = datetime.datetime(now.year, month, day, hour=hour, minute=minute)
+					# if the meeting date is before now, increment it by a year
+					if meeting < now:
+						meeting = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute)
+				else:
+					await react_with_x(message)
+					return
+			# if a year was inputted
+			else:
+				await react_with_x(message)
+				return
+			
+			# create bday object
+			bday = BDay(meeting, ' '.join(command[5:]))
+			# if the bday was successfully removed from the bday list
+			if server_data[message.guild].remove_bday(bday):
+				await react_with_check(message)
+			# if the bday wasn't found / successfully removed from the list
+			else:
+				await react_with_x(message)
 		# if the command isn't recognized
 		else:
 			await react_with_x(message)
@@ -897,9 +1041,7 @@ async def set_command(message, command):
 			# set the 'agenda' / 'minutes' argument to all lowercase for easy comparison later
 			command[1] = command[1].lower()
 			# rebuild the list of names as a string
-			name_list = command[4]
-			for token in command[5:]:
-				name_list += ' ' + token
+			name_list = ' '.join(command[4:])
 			
 			# split the list of names by commas
 			name_list = name_list.split(',')
@@ -991,7 +1133,7 @@ async def dutyorder_command(message):
 
 		# if the meeting minutes duty list is empty
 		if len(server_data[message.guild].minutes_order) < 1:
-			reply += '**No meeting minutes duty list**\n'
+			reply += '**No meeting minutes duty list**'
 		# if there is anyone on the meeting minutes duty list
 		else:
 			# display the list of people on meeting minutes duty
@@ -1038,6 +1180,26 @@ async def alert_command(message, command):
 				await safe_reply(message, reply)
 		else:
 			await react_with_x(message)
+	else:
+		await react_with_x(message)
+
+# handles the bdays command that displays all birthdays that the bot is currently keeping track of
+async def bdays_command(message):
+	channel_perms = message.channel.permissions_for(message.guild.me)
+	# if the bot has permission to send messages in the channel of the message
+	if channel_perms.send_messages:
+		reply = '```Birthdays:```\n'
+
+		# if the bday list is empty
+		if len(server_data[message.guild].bdays) < 1:
+			reply += '**No Birthdays**'
+		# if the bday list has at least 1 item in it
+		else:
+			# display the list of bdays
+			for bday in server_data[message.guild].bdays:
+				reply += f'**{bday}**\n\n'
+
+		await safe_reply(message, reply)
 	else:
 		await react_with_x(message)
 
@@ -1103,6 +1265,41 @@ async def safe_reply(message, reply: str):
 	# if the bot doesn't have permission to send messages in the channel of the message, react with an x
 	else:
 		await react_with_x(message)
+
+# turns a string of the format Y/M/D or Y-M-D into a tuple of numbers (year, month, day)
+def str_to_date_nums(date: str):
+	date_nums = []
+	# if the date uses slashes
+	if '/' in date and not '-' in date:
+		# split the string by slashes
+		date_nums = date.split('/')
+	# if the date uses dashes
+	elif '-' in date and not '/' in date:
+		# split the string by dashes
+		date_nums = date.split('-')
+	# if the date argument either has both slashes and dashes or neither
+	else:
+		return None
+	
+	year = None
+	month = None
+	day = None
+	# if there are exactly 2 strings from the split and they are both positive integers
+	if len(date_nums) == 2 and date_nums[0].isnumeric() and date_nums[1].isnumeric():
+		# convert those strings into numbers
+		month = int(date_nums[0])
+		day = int(date_nums[1])
+	# if there are exactly 3 strings from the split and they are all positive integers
+	elif len(date_nums) == 3 and date_nums[0].isnumeric() and date_nums[1].isnumeric() and date_nums[2].isnumeric():
+		# convert those strings into numbers
+		year = int(date_nums[0])
+		month = int(date_nums[1])
+		day = int(date_nums[2])
+	# if the date input is invalid
+	else:
+		return None
+	
+	return (year, month, day)
 
 # returns whether or not a string is a day of the week
 
