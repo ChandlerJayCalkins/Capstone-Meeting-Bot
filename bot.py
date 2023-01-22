@@ -15,6 +15,7 @@
 #	.cfg - configuration files (settings)
 
 import discord
+import sys
 import os
 import shutil
 import datetime
@@ -233,7 +234,7 @@ perms.message_content = True
 client = discord.Client(intents = perms)
 
 # gets the secret bot token by reading it from a local txt file
-with open('token.txt', 'r') as file:
+with open("token.txt", "r") as file:
 	bot_token = file.readline().strip()
 
 # strings for the bot to detect commands
@@ -246,6 +247,9 @@ server_root = 'servers'
 # used for keeping track of each server's meeting / noteorders etc.
 # maps a discord guild object to a ServerData object
 server_data = {}
+
+# flag to signal if a server is done setting up
+running = False
 
 # used for keeping track of agenda notetaking orders for a server
 # maps a discord server / guild to a list of strings of names
@@ -269,11 +273,17 @@ async def on_ready():
 	desktop_prefix = f"<@!{client.user.id}>"
 	mobile_prefix = f"<@{client.user.id}>"
 
+	# prints message to show that the bot is currently initializing the data for each server it's in
+	print(datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]"), f"{sys.argv[0]}:", "Initializing server data...")
+
 	# sets up and starts running the bot for each server it's in
 	for server in client.guilds:
 		await startup_server(server)
-
-	print("Bot is running")
+	
+	# signal that the bot is done setting up
+	global running
+	running = True
+	print(datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]"), f"{sys.argv[0]}:", "Bot is running")
 
 ########################################################################################################################
 #
@@ -283,21 +293,35 @@ async def on_ready():
 
 # sets up all of the data for a server when it joins one or the bot starts running
 async def startup_server(server):
-	# create necessary directories and folders if they don't already exist
+	# create necessary folders and files if they don't already exist
 
 	# gets the path to the server's data folder
 	server_folder = get_server_folder_name(server)
-	# path to server's meetings file
-	meetings_file = f'{server_folder}/meetings.txt'
+	# path to server's data files
+	data_files = []
+	meetings_file = f'{server_folder}/meetings.lst'
+	data_files.append(meetings_file)
+	weekly_file = f'{server_folder}/weekly_meetings.lst'
+	data_files.append(weekly_file)
+	agenda_file = f'{server_folder}/agenda_order.lst'
+	data_files.append(agenda_file)
+	minutes_file = f'{server_folder}/minutes_order.lst'
+	data_files.append(minutes_file)
+	alert_file = f'{server_folder}/alert_channel.lst'
+	data_files.append(alert_file)
+	bdays_file = f'{server_folder}/bdays.lst'
+	data_files.append(bdays_file)
+
 	# if the server folder doesn't exist, make one
 	if not os.path.isdir('servers'):
 		os.mkdir('servers')
 	# if the folder for this server's data doesn't exist, make it
 	if not os.path.isdir(server_folder):
 		os.mkdir(server_folder)
-	# if the server's meeting file doesn't exist, create one
-	if not os.path.isfile(meetings_file):
-		Path(meetings_file).touch()
+	# if any of the server's data files don't exist, make them
+	for file in data_files:
+		if not os.path.isfile(file):
+			Path(file).touch()
 	
 	# initialize this server's data
 	# TODO: make it so this reads from files instead of initializing everything to nothing
@@ -317,17 +341,24 @@ async def on_guild_join(server):
 # removes all of a server's data when the bot leaves a server
 @client.event
 async def on_guild_remove(server):
-	# removes server's meeting entries in ram
-	agenda.pop(server)
-	agenda_index.pop(server)
-	minutes.pop(server)
-	minutes_index.pop(server)
+	# removes server's data from the server_data list of it's in there
+	if server in server_data:
+		server_data.pop(server)
+	if server in agenda:
+		agenda.pop(server)
+	if server in agenda_index:
+		agenda_index.pop(server)
+	if server in minutes:
+		minutes.pop(server)
+	if server in minutes_index:
+		minutes_index.pop(server)
 
 	# TODO: make it so the bot hangs onto a server's data for a day before it deletes it
 	# gets the path to the server's data folder
 	server_folder = get_server_folder_name(server)
-	# deletes the folder and all files in it
-	shutil.rmtree(server_folder)
+	# deletes the folder and all files in it if the folder exists
+	if os.path.isdir(server_folder):
+		shutil.rmtree(server_folder)
 
 # returns the path to a server's data folder
 def get_server_folder_name(server) -> str:
@@ -349,7 +380,7 @@ def get_server_folder_name(server) -> str:
 
 # returns true if a message is a command, false if it isn't
 async def is_command(message) -> bool:
-	# if the message is not a DM, not from the bot itself (prevents recursion), and starts with a command prefix
+	# if the message is not a DM, not from itself (prevents recursion), and starts with a command prefix
 	if message.guild and message.author.id != client.user.id and message.content.startswith(desktop_prefix) or message.content.startswith(mobile_prefix):
 		# if the message has an actual command (has more than just the prefix token)
 		if len(message.content.split()) > 1:
@@ -364,8 +395,8 @@ async def is_command(message) -> bool:
 # handles commands
 @client.event
 async def on_message(message):
-	# if the message is not a DM and the message is not from the bot (to prevent recursion)
-	if await is_command(message):
+	# if the bot is done setting up, the message is a command from a valid source, and it starts with a command prefix
+	if running and await is_command(message):
 		# splits the command up into tokens by whitespace
 		command = message.content.split()
 		# remove the prefix from the command list
