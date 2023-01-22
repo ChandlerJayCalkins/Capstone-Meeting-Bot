@@ -39,6 +39,8 @@ class ServerData:
 		self.minutes_index = 0
 		self.next_meeting = None
 		self.next_weekly_meeting = None
+		# set the meeting / bday alert channel to the first channel that the bot has message sending permissions in
+		self.alert_channel = self.find_first_message_channel()
 	
 	# adds a meeting time to the meeting list in sorted order with a binary search
 	# returns true if the meeting was added to the list, false if that time is already in the list
@@ -235,6 +237,15 @@ class ServerData:
 	def clear_minutes_order(self):
 		self.minutes_order = []
 		self.minutes_index = 0
+	
+	# returns the first text channel that the bot has permission to send messages in, returns none if there are none
+	def find_first_message_channel(self):
+		for channel in self.server.text_channels:
+			channel_perms = channel.permissions_for(self.server.me)
+			if channel_perms.send_messages:
+				return channel
+		
+		return None
 
 ########################################################################################################################
 #
@@ -416,6 +427,9 @@ async def on_message(message):
 			# if it's the dutyorder command
 			elif command[0] == 'dutyorder':
 				await dutyorder_command(message)
+			# if it's the alert command
+			elif command[0] == 'alert':
+				await alert_command(message, command)
 			else:
 				await help_command(message)
 		# if the bot was @'d with no command
@@ -596,13 +610,27 @@ async def help_command(message, command = ''):
 		# if the info on the dutyorder command was requested
 		elif command == 'dutyorder':
 			# list of string lines that the bot will reply to the help command with
-			help_reply = f'`{command}:` Displays the current agenda a meeting minutes notetaking order.\n\n'
+			help_reply = f'`{command}:` Displays the current agenda and meeting minutes notetaking order.\n\n'
 
 			help_reply += '```Usage:```\n'
 
 			help_reply += f'**{desktop_prefix} dutyorder**\n'
 			help_reply += 'This will display the current agenda and meeting minutes notetaking order, as well as who\'s next on each list.\n'
 			help_reply += 'Note: See how to set the agenda and minutes orders in the "set" command info.'
+
+			await safe_reply(message, help_reply)
+		# if the info on the alert command was requested
+		elif command == 'alert':
+			# list of string lines that the bot will reply to the help command with
+			help_reply = f'`{command}:` Sets the channel that the bot sends meeting and birthday alerts in and displays what the alert channel is set to.\n\n'
+
+			help_reply += '```Usages:```\n'
+
+			help_reply += f'**{desktop_prefix} alert here**\n'
+			help_reply += 'This will set the channel that the bot sends meeting and birthday alerts in to the channel that the command was sent in\n\n.'
+
+			help_reply += f'**{desktop_prefix} alert channel**\n'
+			help_reply += 'This will display what channel the bot is currently using as the alert channel.'
 
 			await safe_reply(message, help_reply)
 		# if the info on the bdays command was requested
@@ -977,6 +1005,39 @@ async def dutyorder_command(message):
 		
 		await safe_reply(message, reply)
 	# if the bot doesn't have permission to send message in the channel of the message
+	else:
+		await react_with_x(message)
+
+# handles the alert command that sets the channel that people get alerted about meetings and bdays in
+async def alert_command(message, command):
+	channel_perms = message.channel.permissions_for(message.guild.me)
+	# if the bot has permission to send messages in the channel of the message
+	if channel_perms.send_messages:
+		# if the command has an argument
+		if len(command) > 1:
+			# set the argument to lowercase to make it easier to compare
+			command[1] = command[1].lower()
+			# if the command follows the format "alert here"
+			if command[1] == 'here':
+				# set the alert channel for the server to the one that the command was sent in
+				server_data[message.guild].alert_channel = message.channel
+				await react_with_check(message)
+			# if the command follows the format "alert channel"
+			elif command[1] == 'channel':
+				# if the bot doesn't have an alert channel
+				if server_data[message.guild].alert_channel is None:
+					# look for one again
+					server_data[message.guild].alert_channel = server_data[message.guild].find_first_message_server()
+					# if the bot still can't find an alert channel
+					if server_data[message.guild].alert_channel is None:
+						await react_with_x(message)
+						return
+				
+				# reply with the bot's alert channel
+				reply = f'<#{server_data[message.guild].alert_channel.id}>'
+				await safe_reply(message, reply)
+		else:
+			await react_with_x(message)
 	else:
 		await react_with_x(message)
 
