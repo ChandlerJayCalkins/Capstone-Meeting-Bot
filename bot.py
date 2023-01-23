@@ -354,9 +354,6 @@ server_root = 'servers'
 # maps a discord guild object to a ServerData object
 server_data = {}
 
-# flag to signal if a server is done setting up
-running = False
-
 # called as soon as the bot is fully online and operational
 @client.event
 async def on_ready():
@@ -374,9 +371,7 @@ async def on_ready():
 	for server in client.guilds:
 		await startup_server(server)
 	
-	# signal that the bot is done setting up
-	global running
-	running = True
+	# prints message that the bot is done setting up
 	print(datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]"), f"{sys.argv[0]}:", "Bot is running")
 
 ########################################################################################################################
@@ -475,8 +470,8 @@ async def is_command(message) -> bool:
 # handles commands
 @client.event
 async def on_message(message):
-	# if the bot is done setting up, the message is a command from a valid source, and it starts with a command prefix
-	if running and await is_command(message):
+	# if the message is a command from a valid source, it starts with a command prefix, and the bot has the data for this server set up
+	if await is_command(message) and message.guild in server_data:
 		# splits the command up into tokens by whitespace
 		command = message.content.split()
 		# remove the prefix from the command list
