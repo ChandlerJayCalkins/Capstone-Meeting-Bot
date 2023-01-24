@@ -31,6 +31,12 @@ class BDay:
 
 # class for storing a server's data (like agenda order list and meeting times)
 class ServerData:
+	################################################################################
+	#
+	# fields
+	#
+	################################################################################
+
 	# directory name of all server data
 	server_root = 'server_data'
 	# max amounts of each type of data (to save drive and ram space)
@@ -46,6 +52,12 @@ class ServerData:
 	minutes_file = 'minutes_order.lst'
 	alert_file = 'alert_channel.cfg'
 	bdays_file = 'bdays.lst'
+
+	################################################################################
+	#
+	# constructor
+	#
+	################################################################################
 
 	def __init__(self, server):
 		# initialize fields
@@ -233,6 +245,12 @@ class ServerData:
 		if update:
 			self.save_bdays()
 	
+	################################################################################
+	#
+	# setters
+	#
+	################################################################################
+
 	# adds a meeting time to the meeting list in sorted order with a binary search
 	# returns true if the meeting was added to the list, false if that time is already in the list
 	def add_meeting(self, time: datetime.datetime, save: bool = True) -> bool:
@@ -592,6 +610,12 @@ class ServerData:
 		if self.minutes_index >= len(self.minutes_order):
 			self.minutes_index = 0
 	
+	################################################################################
+	#
+	# data backup / saving functions
+	#
+	################################################################################
+
 	# saves the meetings list to the server's meetings file
 	def save_meetings(self):
 		file_lines = ''
