@@ -23,7 +23,7 @@ or, for voice support as well if you want (not required for this bot)
 
 # Discord Bot Token
 
-Copy your discord bot's token and paste into a file falled "`token.txt`" in the root directory of this repository (same folder / location as the code).
+Copy your discord bot's token and paste into a file called "`token.txt`" in the root directory of this repository (same folder / location as the code).
 Make sure the file has nothing else in it except the token.
 To create your own discord bot and get it's token, go to [the discord developer portal](https://discord.com/developers/applications).
 
