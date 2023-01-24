@@ -35,7 +35,24 @@ class BDay:
 
 # class for storing a server's data (like agenda order list and meeting times)
 class ServerData:
+	# directory name of all server data
+	server_root = 'server_data'
+	# max amounts of each type of data
+	max_meetings = 100
+	max_weekly_meetings = 100
+	max_agenda_order = 100
+	max_minutes_order = 100
+	max_bdays = 100
+	# file names for each type of data
+	meetings_file = 'meetings.lst'
+	weekly_file = 'weekly_meetings.lst'
+	agenda_file = 'agenda_order.lst'
+	minutes_file = 'minutess_order.lst'
+	alert_file = 'alert_channel.cfg'
+	bdays_file = 'bdays.lst'
+
 	def __init__(self, server):
+		# initialize fields
 		self.server = server
 		self.meetings = []
 		self.weekly_meetings = []
@@ -48,10 +65,71 @@ class ServerData:
 		# set the meeting / bday alert channel to the first channel that the bot has message sending permissions in
 		self.alert_channel = self.find_first_message_channel()
 		self.bdays = []
+
+		# create necessary folders and files if they don't already exist
+
+		# path to server's data files
+		self.folder_name = f'{ServerData.server_root}/{server.id}'
+		data_files = []
+		self.meetings_dir = f'{self.folder_name}/{ServerData.meetings_file}'
+		data_files.append(self.meetings_dir)
+		self.weekly_dir = f'{self.folder_name}/{ServerData.weekly_file}'
+		data_files.append(self.weekly_dir)
+		self.agenda_dir = f'{self.folder_name}/{ServerData.agenda_file}'
+		data_files.append(self.agenda_dir)
+		self.minutes_dir = f'{self.folder_name}/{ServerData.minutes_file}'
+		data_files.append(self.minutes_dir)
+		self.alert_dir = f'{self.folder_name}/{ServerData.alert_file}'
+		data_files.append(self.alert_dir)
+		self.bdays_dir = f'{self.folder_name}/{ServerData.bdays_file}'
+		data_files.append(self.bdays_dir)
+
+		# if the server folder doesn't exist, make one
+		if not os.path.isdir(ServerData.server_root):
+			os.mkdir(ServerData.server_root)
+		# if the folder for this server's data doesn't exist, make it
+		if not os.path.isdir(self.folder_name):
+			os.mkdir(self.folder_name)
+		# if any of the server's data files don't exist, make them
+		for file in data_files:
+			if not os.path.isfile(file):
+				Path(file).touch()
+		
+		# retrieve data from files
+
+		# flag if the list was updated while reading it
+		update = False
+		
+		# read the meetings file
+		with open(self.meetings_dir, 'r') as file:
+			meetings = file.readlines()
+			# get the current date and time
+			now = datetime.datetime.now()
+			# for each line that was read in the file
+			for meeting in meetings:
+				# get the date and time of the meeting from the string
+				try:
+					date = datetime.datetime.strptime(meeting, '%Y-%m-%d %H:%M:%S\n')
+				# just do the next line if this one is wrong
+				except:
+					continue
+
+				# if the meeting time is in the future, add it to the server's meetings list
+				if date > now:
+					self.add_meeting(date, save=False)
+				# if the meeting already happened, don't add it to the list and increment the agenda and minutes indexes
+				else:
+					update = True
+					self.inc_agenda()
+					self.inc_minutes()
+		
+		# if there were any changes to the list while reading it, save the new list
+		if update:
+			self.save_meetings()
 	
 	# adds a meeting time to the meeting list in sorted order with a binary search
 	# returns true if the meeting was added to the list, false if that time is already in the list
-	def add_meeting(self, time: datetime.datetime) -> bool:
+	def add_meeting(self, time: datetime.datetime, save: bool = True) -> bool:
 		# if the meeting list is empty, just add the meeting to the list
 		if len(self.meetings) == 0:
 			self.meetings.append(time)
@@ -99,11 +177,15 @@ class ServerData:
 			else:
 				return False
 		
+		# saves all of the meetings to the server's meetings file
+		if save:
+			self.save_meetings()
+
 		return True
 	
 	# adds a weekly meeting time to a weekly meeting list in sorted order with a binary search
 	# returns true if the meeting was added to the list, false if that time is already in the list
-	def add_weekly_meeting(self, time: datetime.datetime) -> bool:
+	def add_weekly_meeting(self, time: datetime.datetime, save: bool = True) -> bool:
 		# if the meeting list is empty, just add the meeting to the list
 		if len(self.meetings) == 0:
 			self.weekly_meetings.append(time)
@@ -155,7 +237,7 @@ class ServerData:
 	
 	# adds a birthday to the bday list in sorted order with a binary search
 	# returns true if the bday was added to the list, false if a bday on the same day for the same name is already in the list
-	def add_bday(self, bday: BDay) -> bool:
+	def add_bday(self, bday: BDay, save: bool = True) -> bool:
 		# if the bday is empty, just add the bday to the list
 		if len(self.bdays) == 0:
 			self.bdays.append(bday)
@@ -214,7 +296,7 @@ class ServerData:
 	
 	# removes meetings from the server's list of meetings given a list of arguments of the meetings' numbers
 	# returns true if all of the meetings were successfully removed, returns false if any of the meeting numbers wasn't valid
-	def remove_meetings(self, meeting_numbers: list) -> bool:
+	def remove_meetings(self, meeting_numbers: list, save: bool = True) -> bool:
 		meeting_indexes = []
 		# loop through each argument
 		for arg in meeting_numbers:
@@ -237,11 +319,15 @@ class ServerData:
 		for i in meeting_indexes:
 			self.meetings.pop(i - 1)
 		
+		# saves all of the remaining meetings to the server's meetings file
+		if save:
+			self.save_meetings()
+
 		return True
 	
 	# removes weekly meetings from the server's list of weekly meetings given a list of arguments of the meetings' numbers
 	# returns true if all of the meetings were successfully removed, returns false if any of the meeting numbers wasn't valid
-	def remove_weekly_meetings(self, meeting_numbers: list) -> bool:
+	def remove_weekly_meetings(self, meeting_numbers: list, save_tsaveo_file: bool = True) -> bool:
 		meeting_indexes = []
 		# loop through each argument
 		for arg in meeting_numbers:
@@ -268,7 +354,7 @@ class ServerData:
 	
 	# removes a birthday from the server's list of birthdays given a bday object
 	# returns true if the bday was found and removed, false if it wasn't
-	def remove_bday(self, bday: BDay) -> bool:
+	def remove_bday(self, bday: BDay, save: bool = True) -> bool:
 		# if the bday is in the list
 		if bday in self.bdays:
 			# remove it from the list and return true
@@ -280,18 +366,18 @@ class ServerData:
 			return False
 	
 	# sets the agenda notetaking order to a given list of names
-	def set_agenda_order(self, names: list):
+	def set_agenda_order(self, names: list, save: bool = True):
 		self.agenda_order = names
 		self.agenda_index = 0
 	
 	# sets the meeting minutes notetaking order to a given list of names
-	def set_minutes_order(self, names: list):
+	def set_minutes_order(self, names: list, save: bool = True):
 		self.minutes_order = names
 		self.minutes_index = 0
 	
 	# sets the agenda index to the inputted name at that index
 	# returns true if the name was found, false if it wasn't
-	def set_agenda_to(self, name: str) -> bool:
+	def set_agenda_to(self, name: str, save: bool = True) -> bool:
 		if name in self.agenda_order:
 			self.agenda_index = self.agenda_order.find(name)
 			return True
@@ -300,7 +386,7 @@ class ServerData:
 	
 	# sets the minutes index to the inputted name at that index
 	# returns true if the name was found, false if it wasn't
-	def set_minutes_to(self, name: str) -> bool:
+	def set_minutes_to(self, name: str, save: bool = True) -> bool:
 		if name in self.minutes_order:
 			self.minutes_index = self.minutes_order.find(name)
 			return True
@@ -308,12 +394,12 @@ class ServerData:
 			return False
 	
 	# sets the agenda duty list to an empty list and the agenda index to 0
-	def clear_agenda_order(self):
+	def clear_agenda_order(self, save: bool = True):
 		self.agenda_order = []
 		self.agenda_index = 0
 	
 	# sets the meeting minutes duty list to an empty list and the minutes index to 0
-	def clear_minutes_order(self):
+	def clear_minutes_order(self, save: bool = True):
 		self.minutes_order = []
 		self.minutes_index = 0
 	
@@ -323,8 +409,29 @@ class ServerData:
 			channel_perms = channel.permissions_for(self.server.me)
 			if channel_perms.send_messages:
 				return channel
+	
+	# increments the agenda order index to the next person in the list, loops back to the start if it's at the end
+	def inc_agenda(self):
+		self.agenda_index += 1
+		if self.agenda_index >= len(self.agenda_order):
+			self.agenda_index = 0
+	
+	# increments the meeting minutes order index to the next person in the list, loops back to the start if it's at the end
+	def inc_minutes(self):
+		self.minutes_index += 1
+		if self.minutes_index >= len(self.minutes_order):
+			self.minutes_index = 0
+	
+	# saves the meetings list to the server's meetings file
+	def save_meetings(self):
+		file_lines = ''
+		# combine every date in the list into a string separating dates with newlines
+		for meeting in self.meetings:
+			file_lines += str(meeting) + '\n'
 		
-		return None
+		# write the dates to the meetings file
+		with open(self.meetings_dir, 'w') as file:
+			file.write(file_lines)
 
 ########################################################################################################################
 #
@@ -347,9 +454,6 @@ with open("token.txt", "r") as file:
 desktop_prefix = ""
 mobile_prefix = ""
 
-# directory name of all server data
-server_root = 'server_data'
-
 # used for keeping track of each server's meeting / dutyorders etc.
 # maps a discord guild object to a ServerData object
 server_data = {}
@@ -369,83 +473,28 @@ async def on_ready():
 
 	# sets up and starts running the bot for each server it's in
 	for server in client.guilds:
-		await startup_server(server)
+		server_data[server] = ServerData(server)
 	
 	# prints message that the bot is done setting up
 	print(datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]"), f"{sys.argv[0]}:", "Bot is running")
 
-########################################################################################################################
-#
-# server data handling
-#
-########################################################################################################################
-
-# sets up all of the data for a server when it joins one or the bot starts running
-async def startup_server(server):
-	# create necessary folders and files if they don't already exist
-
-	# gets the path to the server's data folder
-	server_folder = get_server_folder_name(server)
-	# path to server's data files
-	data_files = []
-	meetings_file = f'{server_folder}/meetings.lst'
-	data_files.append(meetings_file)
-	weekly_file = f'{server_folder}/weekly_meetings.lst'
-	data_files.append(weekly_file)
-	agenda_file = f'{server_folder}/agenda_order.lst'
-	data_files.append(agenda_file)
-	minutes_file = f'{server_folder}/minutes_order.lst'
-	data_files.append(minutes_file)
-	alert_file = f'{server_folder}/alert_channel.lst'
-	data_files.append(alert_file)
-	bdays_file = f'{server_folder}/bdays.lst'
-	data_files.append(bdays_file)
-
-	# if the server folder doesn't exist, make one
-	if not os.path.isdir(server_root):
-		os.mkdir(server_root)
-	# if the folder for this server's data doesn't exist, make it
-	if not os.path.isdir(server_folder):
-		os.mkdir(server_folder)
-	# if any of the server's data files don't exist, make them
-	for file in data_files:
-		if not os.path.isfile(file):
-			Path(file).touch()
-	
-	# initialize this server's data
-	# TODO: make it so this reads from files instead of initializing everything to nothing
-	server_data[server] = ServerData(server)
-
 # sets up the bot for a new server every time it joins one while running
 @client.event
 async def on_guild_join(server):
-	await startup_server(server)
+	server_data[server] = ServerData(server)
 
 # removes all of a server's data when the bot leaves a server
 @client.event
 async def on_guild_remove(server):
-	# removes server's data from the server_data list of it's in there
-	if server in server_data:
-		server_data.pop(server)
-
 	# TODO: make it so the bot hangs onto a server's data for a day before it deletes it
-	# gets the path to the server's data folder
-	server_folder = get_server_folder_name(server)
-	# deletes the folder and all files in it if the folder exists
-	if os.path.isdir(server_folder):
-		shutil.rmtree(server_folder)
-
-# returns the path to a server's data folder
-def get_server_folder_name(server) -> str:
-	# get server's name up to 128 chars
-	server_name = server.name[:128]
-	# turn all illegal filename chars in the name to underscores
-	illegal_chars = ['#', '%', '&', '{', '}', '\\', '<', '>', '*', '?', '/', ' ', '$', '!', '\'', '"', ':', '@', '+', '`', '|', '=']
-	for c in illegal_chars:
-		server_name = server_name.replace(c, '_')
-	# server's data folder path
-	server_folder = f'{server_root}/{server.id}-{server_name}'
-	return server_folder
+	# if the server's data exists
+	if server in server_data:
+		# deletes the folder and all files in it if the folder exists
+		if os.path.isdir(server_data[server].server_folder):
+			shutil.rmtree(server_data[server].server_folder)
+		
+		# deletes the server's data from ram
+		server_data.pop(server)
 
 ########################################################################################################################
 #
