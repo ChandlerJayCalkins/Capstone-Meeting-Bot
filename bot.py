@@ -347,8 +347,8 @@ with open("token.txt", "r") as file:
 desktop_prefix = ""
 mobile_prefix = ""
 
-# root directory of all server data
-server_root = 'servers'
+# directory name of all server data
+server_root = 'server_data'
 
 # used for keeping track of each server's meeting / dutyorders etc.
 # maps a discord guild object to a ServerData object
@@ -402,8 +402,8 @@ async def startup_server(server):
 	data_files.append(bdays_file)
 
 	# if the server folder doesn't exist, make one
-	if not os.path.isdir('servers'):
-		os.mkdir('servers')
+	if not os.path.isdir(server_root):
+		os.mkdir(server_root)
 	# if the folder for this server's data doesn't exist, make it
 	if not os.path.isdir(server_folder):
 		os.mkdir(server_folder)

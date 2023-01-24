@@ -1,7 +1,7 @@
 # Custom ignores:
 
 token.txt
-servers/*
+server_data/*
 
 # Python gitignore template:
 
