@@ -1,7 +1,3 @@
-# file extension meaings:
-#	.lst - list files (contain lists of plaintext data separated by line breaks)
-#	.cfg - configuration files (settings)
-
 import discord
 import sys
 import os
@@ -719,213 +715,233 @@ async def help_command(message, command = ''):
 		# if info on the help command was requested
 		if command == 'help':
 			# list of string lines that the bot will reply to the help command with
-			help_reply = f'`{command}:` Gives info about the bot and it\'s commands.\n\n'
+			reply = f'`{command}:` Gives info about the bot and it\'s commands.\n\n'
 
-			help_reply += '```Usages:```\n'
+			reply += '```Usages:```\n'
 
-			help_reply += f'**{desktop_prefix} help**\n'
-			help_reply += 'This will print out the default help message that shows how to use the bot and lists all of the bot\'s commands.\n\n'
+			reply += f'**{desktop_prefix} help**\n'
+			reply += 'This will print out the default help message that shows how to use the bot and lists all of the bot\'s commands.\n\n'
 
-			help_reply += f'**{desktop_prefix} help [command]**\n'
-			help_reply += 'Gives info on [command].\n'
+			reply += f'**{desktop_prefix} help [command]**\n'
+			reply += 'Gives info on [command].\n'
 
-			help_reply += '\n```Examples:```\n'
+			reply += '\n```Examples:```\n'
 
-			help_reply += f'{desktop_prefix} help\n'
-			help_reply += f'{desktop_prefix} help add\n'
-			help_reply += f'{desktop_prefix} help meetings'
+			reply += f'{desktop_prefix} help\n'
+			reply += f'{desktop_prefix} help add\n'
+			reply += f'{desktop_prefix} help meetings'
 
-			await safe_reply(message, help_reply)
+			await safe_reply(message, reply)
 		# if the info on the add command was requested
 		elif command == 'add':
 			# list of string lines that the bot will reply to the help command with
-			help_reply = f'`{command}:` Adds a meeting or a birthday to the bot so it can remind you about it.\n\n'
+			reply = f'`{command}:` Adds a meeting or a birthday to the bot so it can remind you about it.\n\n'
 
-			help_reply += '```Usages:```\n'
+			reply += '```Usages:```\n'
 
-			help_reply += f'**{desktop_prefix} add meeting on [date] at [time]**\n'
-			help_reply += 'This will add a meeting to the bot, and the bot will remind you about the meeting on [date] a few minutes before [time] and then forget about it.\n'
-			help_reply += 'Note: you cannot add a meeting with the exact same time and date as an already existing meeting.\n\n'
+			reply += f'**{desktop_prefix} add meeting on [date] at [time]**\n'
+			reply += 'This will add a meeting to the bot, and the bot will remind you about the meeting on [date] a few minutes before [time] and then forget about it.\n'
+			reply += 'Note: you cannot add a meeting with the exact same time and date as an already existing meeting.\n\n'
 
-			help_reply += f'**{desktop_prefix} add weekly meeting on [day] at [time]**\n'
-			help_reply += 'This will add a meeting to the bot that recurs every week, and the bot will remind you about the meeting every week on [day] a few minutes before [time].\n'
-			help_reply += 'Note: you cannot add a weekly meeting with the exact same time and day as an already existing weekly meeting.\n\n'
+			reply += f'**{desktop_prefix} add weekly meeting on [day] at [time]**\n'
+			reply += 'This will add a meeting to the bot that recurs every week, and the bot will remind you about the meeting every week on [day] a few minutes before [time].\n'
+			reply += 'Note: you cannot add a weekly meeting with the exact same time and day as an already existing weekly meeting.\n\n'
 
-			help_reply += f'**{desktop_prefix} add bday on [date] for [name]**\n'
-			help_reply += 'This will add a birthday to the bot, and the bot will say happy birthday on [date] to [name].\n'
-			help_reply += 'Note: you cannot add a birthday for a person with the exact same name and date as an already existing birthday.\n\n'
+			reply += f'**{desktop_prefix} add bday on [date] for [name]**\n'
+			reply += 'This will add a birthday to the bot, and the bot will say happy birthday on [date] to [name].\n'
+			reply += 'Note: you cannot add a birthday for a person with the exact same name and date as an already existing birthday.\n\n'
 
-			help_reply += '**Formatting:**\n\n'
-			help_reply += '**[date]:** YYYY/M/D or YYYY-M-D M/D or M-D (YYYY = year (1 <= YYYY <= 9999), M = month (1 <= M <= 12), D = day (1 <= D <= 31)).\n'
-			help_reply += 'Note: if the year is not inputted in the date, the next available date on M/D will be inputted. The bot will ignore years on bday inputs.\n'
-			help_reply += '**[time]:** H:M or H:M am/pm or H or H am/pm (H = hour (1 <= H <= 12 or 1 <= H <= 24), M = minute (1 <= M <= 59)).\n'
-			help_reply += '**[day]:** Sundays: (su, sun, sunday, sundays), Mondays: (m, mon, monday, mondays), Tuesdays: (tu, tue, tues, tuesday, tuesdays), '
-			help_reply += 'Wednesdays: (w, wed, wednesday, wednesdays), Thursdays: (th, thu, thur, thurs, thursday, thursdays), Fridays: (f, fri, friday, fridays), '
-			help_reply += 'Saturdays: (sa, sat, saturdays, saturdays).\n\n'
+			reply += '**Formatting:**\n\n'
+			reply += '**[date]:** YYYY/M/D or YYYY-M-D M/D or M-D (YYYY = year (1 <= YYYY <= 9999), M = month (1 <= M <= 12), D = day (1 <= D <= 31)).\n'
+			reply += 'Note: if the year is not inputted in the date, the next available date on M/D will be inputted. The bot will ignore years on bday inputs.\n'
+			reply += '**[time]:** H:M or H:M am/pm or H or H am/pm (H = hour (1 <= H <= 12 or 1 <= H <= 24), M = minute (1 <= M <= 59)).\n'
+			reply += '**[day]:** Sundays: (su, sun, sunday, sundays), Mondays: (m, mon, monday, mondays), Tuesdays: (tu, tue, tues, tuesday, tuesdays), '
+			reply += 'Wednesdays: (w, wed, wednesday, wednesdays), Thursdays: (th, thu, thur, thurs, thursday, thursdays), Fridays: (f, fri, friday, fridays), '
+			reply += 'Saturdays: (sa, sat, saturdays, saturdays).\n\n'
 
-			help_reply += '```Examples:```\n'
+			reply += '```Examples:```\n'
 
-			help_reply += f'{desktop_prefix} add meeting on 11/15 at 10:30 am\n'
-			help_reply += f'{desktop_prefix} add weekly meeting on tu at 15:30\n'
-			help_reply += f'{desktop_prefix} add bday on 1/7 for Chandler\n'
-			help_reply += f'{desktop_prefix} add meeting on 9-20 at 4 pm\n'
-			help_reply += f'{desktop_prefix} add weekly meeting on mondays at 18\n'
-			help_reply += f'{desktop_prefix} add bday on 12-1 for Josh\n'
-			help_reply += f'{desktop_prefix} add meeting on 2024/10/31 at 1 am\n'
-			help_reply += f'{desktop_prefix} add weekly meeting on friday at 1:45 pm\n'
-			help_reply += f'{desktop_prefix} add bday on 4/1 for Francis Fulloffrenchpeople'
+			reply += f'{desktop_prefix} add meeting on 11/15 at 10:30 am\n'
+			reply += f'{desktop_prefix} add weekly meeting on tu at 15:30\n'
+			reply += f'{desktop_prefix} add bday on 1/7 for Chandler\n'
+			reply += f'{desktop_prefix} add meeting on 9-20 at 4 pm\n'
+			reply += f'{desktop_prefix} add weekly meeting on mondays at 18\n'
+			reply += f'{desktop_prefix} add bday on 12-1 for Josh\n'
+			reply += f'{desktop_prefix} add meeting on 2024/10/31 at 1 am\n'
+			reply += f'{desktop_prefix} add weekly meeting on friday at 1:45 pm\n'
+			reply += f'{desktop_prefix} add bday on 4/1 for Francis Fulloffrenchpeople'
 
-			await safe_reply(message, help_reply)
+			await safe_reply(message, reply)
 		# if the info on the remove command was requested
 		elif command == 'remove':
 			# list of string lines that the bot will reply to the help command with
-			help_reply = f'`{command}:` Removes a meeting, a birthday, or clear the agenda or meeting minutes duty list from the bot.\n\n'
+			reply = f'`{command}:` Removes a meeting, a birthday, or clear the agenda or meeting minutes duty list from the bot.\n\n'
 
-			help_reply += '```Usages:```\n'
+			helpreply_reply += '```Usages:```\n'
 
-			help_reply += f'**{desktop_prefix} remove meeting [meeting number(s)]**\n'
-			help_reply += 'This will remove the meeting(s) with the numbers [meeting number(s)].\n'
-			help_reply += 'Note: You can find a meeting\'s number with the "meetings" command (it\'s the number to the left of the meeting).\n\n'
+			reply += f'**{desktop_prefix} remove meeting [meeting number(s)]**\n'
+			reply += 'This will remove the meeting(s) with the numbers [meeting number(s)].\n'
+			reply += 'Note: You can find a meeting\'s number with the "meetings" command (it\'s the number to the left of the meeting).\n\n'
 
-			help_reply += f'**{desktop_prefix} remove meetings [meeting number(s)]**\n'
-			help_reply += 'Same as above.\n\n'
+			reply += f'**{desktop_prefix} remove meetings [meeting number(s)]**\n'
+			reply += 'Same as above.\n\n'
 
-			help_reply += f'**{desktop_prefix} remove weekly meeting [meeting number(s)]**\n'
-			help_reply += 'This will remove the weekly meeting(s) with the numbers [meeting number(s)].\n'
-			help_reply += 'Note: You can find a meeting\'s number with the "meetings" command (it\'s the number to the left of the meeting).\n\n'
+			reply += f'**{desktop_prefix} remove weekly meeting [meeting number(s)]**\n'
+			reply += 'This will remove the weekly meeting(s) with the numbers [meeting number(s)].\n'
+			reply += 'Note: You can find a meeting\'s number with the "meetings" command (it\'s the number to the left of the meeting).\n\n'
 
-			help_reply += f'**{desktop_prefix} remove weekly meetings [meeting number(s)]**\n'
-			help_reply += 'Same as above.\n\n'
+			reply += f'**{desktop_prefix} remove weekly meetings [meeting number(s)]**\n'
+			reply += 'Same as above.\n\n'
 
-			help_reply += f'**{desktop_prefix} remove agenda**\n'
-			help_reply += 'Clears the agenda notetaking duty list.\n\n'
+			reply += f'**{desktop_prefix} remove agenda**\n'
+			reply += 'Clears the agenda notetaking duty list.\n\n'
 
-			help_reply += f'**{desktop_prefix} remove minutes**\n'
-			help_reply += 'Clears the meeting minutes notetaking duty list.\n\n'
+			reply += f'**{desktop_prefix} remove minutes**\n'
+			reply += 'Clears the meeting minutes notetaking duty list.\n\n'
 
-			help_reply += f'**{desktop_prefix} remove bday on [date] for [name]**\n'
-			help_reply += 'This will remove a birthday on [date] for the person named [name].\n'
-			help_reply += 'Note: You can see which birthdays have been added with the "bdays" command.\n\n'
+			reply += f'**{desktop_prefix} remove bday on [date] for [name]**\n'
+			reply += 'This will remove a birthday on [date] for the person named [name].\n'
+			reply += 'Note: You can see which birthdays have been added with the "bdays" command.\n\n'
 
-			help_reply += '**Formatting:**\n\n'
-			help_reply += '**[date]:** M/D or M-D (M = month (1 <= M <= 12), D = day (1 <= D <= 31)).\n\n'
+			reply += '**Formatting:**\n\n'
+			reply += '**[date]:** M/D or M-D (M = month (1 <= M <= 12), D = day (1 <= D <= 31)).\n\n'
 
-			help_reply += '```Examples:```\n'
+			reply += '```Examples:```\n'
 
-			help_reply += f'{desktop_prefix} remove meeting 1\n'
-			help_reply += f'{desktop_prefix} remove weekly meeting 2 6 4\n'
-			help_reply += f'{desktop_prefix} remove agenda\n'
-			help_reply += f'{desktop_prefix} remove bday on 1/7 for Chandler\n'
-			help_reply += f'{desktop_prefix} remove meetings 7 3 5\n'
-			help_reply += f'{desktop_prefix} remove weekly meetings 8\n'
-			help_reply += f'{desktop_prefix} remove minutes\n'
-			help_reply += f'{desktop_prefix} remove bday on 12-1 for Josh\n'
+			reply += f'{desktop_prefix} remove meeting 1\n'
+			reply += f'{desktop_prefix} remove weekly meeting 2 6 4\n'
+			reply += f'{desktop_prefix} remove agenda\n'
+			reply += f'{desktop_prefix} remove bday on 1/7 for Chandler\n'
+			reply += f'{desktop_prefix} remove meetings 7 3 5\n'
+			reply += f'{desktop_prefix} remove weekly meetings 8\n'
+			reply += f'{desktop_prefix} remove minutes\n'
+			reply += f'{desktop_prefix} remove bday on 12-1 for Josh\n'
 
-			await safe_reply(message, help_reply)
+			await safe_reply(message, reply)
 		# if the info on the meetings command was requested
 		elif command == 'meetings':
 			# list of string lines that bot will reply to the help command with
-			help_reply = f'`{command};` Displays all meetings and weekly meetings.\n\n'
+			reply = f'`{command};` Displays all meetings and weekly meetings.\n\n'
 
-			help_reply += '```Usage:```\n'
+			reply += '```Usage:```\n'
 
-			help_reply += f'**{desktop_prefix} meetings**\n'
-			help_reply += 'This will display all meetings and weekly meetings that the bot is currently storing along with each meeting\'s removal number.\n'
-			help_reply += 'Note: See how to use the meeting removal numbers and remove meetings in the "remove" command info, as well as how to add '
-			help_reply += 'meetings in the "add" command info.'
+			reply += f'**{desktop_prefix} meetings**\n'
+			reply += 'This will display all meetings and weekly meetings that the bot is currently storing along with each meeting\'s removal number.\n'
+			reply += 'Note: See how to use the meeting removal numbers and remove meetings in the "remove" command info, as well as how to add '
+			reply += 'meetings in the "add" command info.'
 
-			await safe_reply(message, help_reply)
+			await safe_reply(message, reply)
 		# if the info on the set command was requested
 		elif command == 'set':
 			# list of string lines that the bot will reply to the help command with
-			help_reply = f'`{command}:` Sets the agenda or meeting minutes notetaking order.\n\n'
+			reply = f'`{command}:` Sets the agenda or meeting minutes notetaking order.\n\n'
 
-			help_reply += '```Usages:```\n'
+			reply += '```Usages:```\n'
 
-			help_reply += f'**{desktop_prefix} set agenda order as [name], [name], [name], ...**\n'
-			help_reply += 'This will set the agenda notetaking order as the list of names at the end of the command.\n'
-			help_reply += 'It will also reset the agenda notetaking list to start at the first name in this command and work it\'s way down.\n'
-			help_reply += 'Every time there is a meeting, the bot will remind you whose turn it is on agenda, and after the meeting has started '
-			help_reply += 'it will move onto the next person in the list for the next meeting.\n'
-			help_reply += 'Note: See the current agenda order in the "dutyorder" command info.\n\n'
+			reply += f'**{desktop_prefix} set agenda order as [name], [name], [name], ...**\n'
+			reply += 'This will set the agenda notetaking order as the list of names at the end of the command.\n'
+			reply += 'It will also reset the agenda notetaking list to start at the first name in this command and work it\'s way down.\n'
+			reply += 'Every time there is a meeting, the bot will remind you whose turn it is on agenda, and after the meeting has started '
+			reply += 'it will move onto the next person in the list for the next meeting.\n'
+			reply += 'Note: See the current agenda order in the "dutyorder" command info.\n\n'
 
-			help_reply += f'**{desktop_prefix} set minutes order as [name], [name], [name], ...**\n'
-			help_reply += 'This will set the meeting minutes notetaking order as the list of names at the end of the command.\n'
-			help_reply += 'It will also reset the meeting minutes notetaking list to start at the first name in this command and work it\'s way down.\n'
-			help_reply += 'Every time there is a meeting, the bot will remind you whose turn it is on minutes, and after the meeting has started '
-			help_reply += 'it will move onto the next person in the list for the next meeting.\n'
-			help_reply += 'Note: See the current meeting minutes order in the "dutyorder" command info.\n\n'
+			reply += f'**{desktop_prefix} set minutes order as [name], [name], [name], ...**\n'
+			reply += 'This will set the meeting minutes notetaking order as the list of names at the end of the command.\n'
+			reply += 'It will also reset the meeting minutes notetaking list to start at the first name in this command and work it\'s way down.\n'
+			reply += 'Every time there is a meeting, the bot will remind you whose turn it is on minutes, and after the meeting has started '
+			reply += 'it will move onto the next person in the list for the next meeting.\n'
+			reply += 'Note: See the current meeting minutes order in the "dutyorder" command info.\n\n'
 
-			help_reply += f'**{desktop_prefix} set agenda to [name]**\n'
-			help_reply += 'This will set the next person from the agenda list on agenda notetaking duty to [name].\n'
-			help_reply += 'Note: See the current agenda order in the "dutyorder" command info.\n\n'
+			reply += f'**{desktop_prefix} set agenda to [name]**\n'
+			reply += 'This will set the next person from the agenda list on agenda notetaking duty to [name].\n'
+			reply += 'Note: See the current agenda order in the "dutyorder" command info.\n\n'
 
-			help_reply += f'**{desktop_prefix} set minutes to [name]**\n'
-			help_reply += 'This will set the next person from the minutes list on meeting minutes notetaking duty to [name].\n'
-			help_reply += 'Note: See the current meeting minutes order in the "dutyorder" command info.\n\n'
+			reply += f'**{desktop_prefix} set minutes to [name]**\n'
+			reply += 'This will set the next person from the minutes list on meeting minutes notetaking duty to [name].\n'
+			reply += 'Note: See the current meeting minutes order in the "dutyorder" command info.\n\n'
 
-			help_reply += '**Formatting:**\n\n'
-			help_reply += 'Multiple names must be separated by commas.\n'
+			reply += '**Formatting:**\n\n'
+			reply += 'Multiple names must be separated by commas.\n'
 
-			help_reply += '```Examples:```\n'
+			reply += '```Examples:```\n'
 
-			help_reply += f'{desktop_prefix} set agenda order as Chandler Glen Holly\n'
-			help_reply += f'{desktop_prefix} set minutes order as Grant David Tyler\n'
-			help_reply += f'{desktop_prefix} set agenda to Glen\n'
-			help_reply += f'{desktop_prefix} set minutes to Tyler\n'
+			reply += f'{desktop_prefix} set agenda order as Chandler Glen Holly\n'
+			reply += f'{desktop_prefix} set minutes order as Grant David Tyler\n'
+			reply += f'{desktop_prefix} set agenda to Glen\n'
+			reply += f'{desktop_prefix} set minutes to Tyler\n'
 
-			await safe_reply(message, help_reply)
+			await safe_reply(message, reply)
 		# if the info on the dutyorder command was requested
 		elif command == 'dutyorder':
 			# list of string lines that the bot will reply to the help command with
-			help_reply = f'`{command}:` Displays the current agenda and meeting minutes notetaking order.\n\n'
+			reply = f'`{command}:` Displays the current agenda and meeting minutes notetaking order.\n\n'
 
-			help_reply += '```Usage:```\n'
+			reply += '```Usage:```\n'
 
-			help_reply += f'**{desktop_prefix} dutyorder**\n'
-			help_reply += 'This will display the current agenda and meeting minutes notetaking order, as well as who\'s next on each list.\n'
-			help_reply += 'Note: See how to set the agenda and minutes orders in the "set" command info.'
+			reply += f'**{desktop_prefix} dutyorder**\n'
+			reply += 'This will display the current agenda and meeting minutes notetaking order, as well as who\'s next on each list.\n'
+			reply += 'Note: See how to set the agenda and minutes orders in the "set" command info.'
 
-			await safe_reply(message, help_reply)
+			await safe_reply(message, reply)
 		# if the info on the alert command was requested
 		elif command == 'alert':
 			# list of string lines that the bot will reply to the help command with
-			help_reply = f'`{command}:` Sets the channel that the bot sends meeting and birthday alerts in and displays what the alert channel is set to.\n\n'
+			reply = f'`{command}:` Sets the channel that the bot sends meeting and birthday alerts in and displays what the alert channel is set to.\n\n'
 
-			help_reply += '```Usages:```\n'
+			reply += '```Usages:```\n'
 
-			help_reply += f'**{desktop_prefix} alert here**\n'
-			help_reply += 'This will set the channel that the bot sends meeting and birthday alerts in to the channel that the command was sent in.\n\n'
+			reply += f'**{desktop_prefix} alert here**\n'
+			reply += 'This will set the channel that the bot sends meeting and birthday alerts in to the channel that the command was sent in.\n\n'
 
-			help_reply += f'**{desktop_prefix} alert channel**\n'
-			help_reply += 'This will display what channel the bot is currently using as the alert channel.'
+			reply += f'**{desktop_prefix} alert channel**\n'
+			reply += 'This will display what channel the bot is currently using as the alert channel.'
 
-			await safe_reply(message, help_reply)
+			await safe_reply(message, reply)
 		# if the info on the bdays command was requested
 		elif command == 'bdays':
 			# list of string lines that the bot will reply to the help command with
-			help_reply = f'`{command}:` Displays all birthdays the bot is currently keeping track of.\n\n'
+			reply = f'`{command}:` Displays all birthdays the bot is currently keeping track of.\n\n'
 
-			help_reply += '```Usage:```\n'
+			reply += '```Usage:```\n'
 
-			help_reply += f'**{desktop_prefix} bdays**\n'
-			help_reply += 'This will display all birthdays that the bot is currently keeping track of to say happy birthday to.\n'
-			help_reply += 'Note: See how to add and remove birthdays in the "add" and "remove" command infos.'
+			reply += f'**{desktop_prefix} bdays**\n'
+			reply += 'This will display all birthdays that the bot is currently keeping track of to say happy birthday to.\n'
+			reply += 'Note: See how to add and remove birthdays in the "add" and "remove" command infos.'
 
-			await safe_reply(message, help_reply)
+			await safe_reply(message, reply)
 		# if no argument was given or it isn't recognized
 		else:
 			# list of commands that the bot has
 			command_list = ['help', 'add', 'remove', 'meetings', 'set', 'dutyorder', 'alert', 'bdays']
+
 			# list of string lines that the bot will reply to the help command with
-			help_reply = f'`Usage:` **{desktop_prefix} [command] [arguments...]**\n\n'
-			help_reply += f'Type "{desktop_prefix} help [command]" to get more info on how to use a specific command.\n\n'
-			help_reply += f'```List of commands:```\n'
+			reply = f'`Usage:` **{desktop_prefix} [command] [arguments...]**\n\n'
+			reply += f'Type "{desktop_prefix} help [command]" to get more info on how to use a specific command.\n\n'
+
+			reply += f'```List of commands:```\n'
+
 			# add a numbered line for each command the bot has
 			for i in range(len(command_list)):
-				help_reply += f'**{i + 1}. {command_list[i]}**\n'
+				reply += f'**{i + 1}. {command_list[i]}**\n'
 			
-			await safe_reply(message, help_reply)
+			reply += '\n```Notes:```\n'
+
+			reply += '- The bot will `@everyone` 30 minutes before and at the start of every meeting and weekly meeting.\n'
+			reply += '- The bot will show who is on agenda and meeting minutes duty every time it gives a meeting alert.\n'
+			reply += '- The bot will increment to the next person on meeting minutes duty after every meeting.\n'
+			reply += '- The bot will increment to the next person on both agenda and meeting minutes duty after every weekly meeting.\n'
+			reply += '- The bot only processes times in the timezone that it is running in (currently Pacific Time (PST and PDT)).\n\n'
+
+			reply += '**Maximum Number of:**\n'
+			reply += f'Meetings: {ServerData.max_meetings}\n'
+			reply += f'Weekly Meetings: {ServerData.max_weekly_meetings}\n'
+			reply += f'Names on Agenda Duty: {ServerData.max_agenda_order}\n'
+			reply += f'Names on Meeting Minutes Duty: {ServerData.max_minutes_order}\n'
+			reply += f'Birthdays: {ServerData.max_bdays}\n\n'
+
+			reply += 'If you want more info, visit the repository for this bot at https://github.com/ChandlerJayCalkins/Capston-Meeting-Bot !'
+			
+			await safe_reply(message, reply)
 	# if the bot doesn't have permission to send message in the channel, react to the message with an x
 	else:
 		await react_with_x(message)
