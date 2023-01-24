@@ -36,9 +36,9 @@ class ServerData:
 	# max amounts of each type of data (to save drive and ram space)
 	max_meetings = 100
 	max_weekly_meetings = 100
-	max_agenda_order = 100
-	max_minutes_order = 100
-	max_bdays = 100
+	max_agenda_order = 50
+	max_minutes_order = 50
+	max_bdays = 50
 	# file names for each type of data
 	meetings_file = 'meetings.lst'
 	weekly_file = 'weekly_meetings.lst'
@@ -67,18 +67,18 @@ class ServerData:
 		# path to server's data files
 		self.folder_name = f'{ServerData.server_root}/{server.id}'
 		data_files = []
-		self.meetings_dir = f'{self.folder_name}/{ServerData.meetings_file}'
-		data_files.append(self.meetings_dir)
-		self.weekly_dir = f'{self.folder_name}/{ServerData.weekly_file}'
-		data_files.append(self.weekly_dir)
-		self.agenda_dir = f'{self.folder_name}/{ServerData.agenda_file}'
-		data_files.append(self.agenda_dir)
-		self.minutes_dir = f'{self.folder_name}/{ServerData.minutes_file}'
-		data_files.append(self.minutes_dir)
-		self.alert_dir = f'{self.folder_name}/{ServerData.alert_file}'
-		data_files.append(self.alert_dir)
-		self.bdays_dir = f'{self.folder_name}/{ServerData.bdays_file}'
-		data_files.append(self.bdays_dir)
+		self.meetings_path = f'{self.folder_name}/{ServerData.meetings_file}'
+		data_files.append(self.meetings_path)
+		self.weekly_path = f'{self.folder_name}/{ServerData.weekly_file}'
+		data_files.append(self.weekly_path)
+		self.agenda_path = f'{self.folder_name}/{ServerData.agenda_file}'
+		data_files.append(self.agenda_path)
+		self.minutes_path = f'{self.folder_name}/{ServerData.minutes_file}'
+		data_files.append(self.minutes_path)
+		self.alert_path = f'{self.folder_name}/{ServerData.alert_file}'
+		data_files.append(self.alert_path)
+		self.bdays_path = f'{self.folder_name}/{ServerData.bdays_file}'
+		data_files.append(self.bdays_path)
 
 		# if the server folder doesn't exist, make one
 		if not os.path.isdir(ServerData.server_root):
@@ -98,7 +98,7 @@ class ServerData:
 		# agenda data
 
 		# read the agenda order file
-		with open(self.agenda_dir, 'r', encoding='utf8') as file:
+		with open(self.agenda_path, 'r', encoding='utf8') as file:
 			lines = file.readlines()
 		
 		# remove the newline from each name and add it to the agenda order list
@@ -127,7 +127,7 @@ class ServerData:
 		# meeting minutes data
 
 		# read the meeting minutes order file
-		with open(self.minutes_dir, 'r', encoding='utf8') as file:
+		with open(self.minutes_path, 'r', encoding='utf8') as file:
 			lines = file.readlines()
 		
 		# remove the newline from each name and add it to the meeting minutes order list
@@ -153,13 +153,13 @@ class ServerData:
 			else:
 				self.save_minutes()
 
-		# meetings data
+		# meeting data
 
 		# flag if the list was updated while reading it
 		update = False
 		
 		# read the meetings file
-		with open(self.meetings_dir, 'r') as file:
+		with open(self.meetings_path, 'r') as file:
 			lines = file.readlines()
 		
 		# get the current date and time
@@ -178,12 +178,60 @@ class ServerData:
 				self.add_meeting(meeting, save=False)
 			# if the meeting already happened, don't add it to the list and increment the minutes index
 			else:
+				# set the update flag to true so the bot updates the data in the file
 				update = True
 				self.inc_minutes()
 		
 		# if there were any changes to the list while reading it, save the new list
 		if update:
 			self.save_meetings()
+		
+		# weekly meeting data
+
+		# reset the flag
+		update = False
+
+		# birthday data
+
+		# reset the flag
+		update = False
+
+		# read the bdays file
+		with open(self.bdays_path, 'r') as file:
+			lines = file.readlines()
+		
+		# get the current date and time
+		now = datetime.datetime.now()
+		# for each line that was read in the file
+		for line in lines:
+			# get the name and datetime of the bday
+			try:
+				# assume the name of the bday goes up to the 20th last character, which is where the datetime should begin (including the newline char)
+				index = -20
+				name = line[:index].strip()
+				# get the datetime of the bday
+				date = datetime.datetime.strptime(line[index:], '%Y-%m-%d %H:%M:%S\n')
+			# set the update flag and do the next line if this one is wrong
+			except:
+				update = True
+				continue
+
+			# if the bday is in the past, update the year so it can be put back into the list
+			if date < now:
+				# set the update flag to true so the bot updates the data in the file
+				update = True
+				date.year = now.year
+				# if the bday is still in the past when is has the same year as now, set it's year to next year
+				if date < now:
+					date.year += 1
+			
+			# construct the bday object and add it to the list in order
+			bday = BDay(date, name)
+			self.add_bday(bday, save=False)
+		
+		# if there were any changes to the list while reading it, save the new list
+		if update:
+			self.save_bdays()
 	
 	# adds a meeting time to the meeting list in sorted order with a binary search
 	# returns true if the meeting was added to the list, false if that time is already in the list
@@ -362,6 +410,10 @@ class ServerData:
 			else:
 				return False
 		
+		# saves all of the birthdays to the server's bdays file
+		if save:
+			self.save_bdays()
+		
 		return True
 	
 	# removes meetings from the server's list of meetings given a list of arguments of the meetings' numbers
@@ -430,6 +482,10 @@ class ServerData:
 			# remove it from the list and return true
 			index = self.bdays.index(bday)
 			self.bdays.pop(index)
+			# saves all of the birthdays to the server's bdays file
+			if save:
+				self.save_bdays()
+			
 			return True
 		# if the bday is not in the list
 		else:
@@ -541,10 +597,10 @@ class ServerData:
 		file_lines = ''
 		# combine every item in the list into a newline separated string
 		for meeting in self.meetings:
-			file_lines += str(meeting) + '\n'
+			file_lines += meeting.strftime('%Y-%m-%d %H:%M:%S\n')
 		
 		# write the dates to the meetings file
-		with open(self.meetings_dir, 'w') as file:
+		with open(self.meetings_path, 'w') as file:
 			file.write(file_lines)
 	
 	# saves the agenda order list and index to the server's agenda order file
@@ -555,7 +611,7 @@ class ServerData:
 			file_lines += name + '\n'
 		
 		# write the index and the items to the data file
-		with open(self.agenda_dir, 'w', encoding='utf8') as file:
+		with open(self.agenda_path, 'w', encoding='utf8') as file:
 			file.write(f'{self.agenda_index}\n')
 			file.write(file_lines)
 	
@@ -567,8 +623,20 @@ class ServerData:
 			file_lines += name + '\n'
 		
 		# write the index and the items to the data file
-		with open(self.minutes_dir, 'w', encoding='utf8') as file:
+		with open(self.minutes_path, 'w', encoding='utf8') as file:
 			file.write(f'{self.minutes_index}\n')
+			file.write(file_lines)
+	
+	# saves the birthdays list to the server's bdays file
+	def save_bdays(self):
+		file_lines = ''
+		# combine every item in the list into a newline separated string
+		for bday in self.bdays:
+			date_str = bday.date.strftime('%Y-%m-%d %H:%M:%S')
+			file_lines += f'{bday.name} {date_str}\n'
+		
+		# write the dates to the meetings file
+		with open(self.bdays_path, 'w') as file:
 			file.write(file_lines)
 
 ########################################################################################################################
@@ -777,7 +845,7 @@ async def help_command(message, command = ''):
 			# list of string lines that the bot will reply to the help command with
 			reply = f'`{command}:` Removes a meeting, a birthday, or clear the agenda or meeting minutes duty list from the bot.\n\n'
 
-			helpreply_reply += '```Usages:```\n'
+			reply += '```Usages:```\n'
 
 			reply += f'**{desktop_prefix} remove meeting [meeting number(s)]**\n'
 			reply += 'This will remove the meeting(s) with the numbers [meeting number(s)].\n'
