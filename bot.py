@@ -37,7 +37,7 @@ class BDay:
 class ServerData:
 	# directory name of all server data
 	server_root = 'server_data'
-	# max amounts of each type of data
+	# max amounts of each type of data (to save drive and ram space)
 	max_meetings = 100
 	max_weekly_meetings = 100
 	max_agenda_order = 100
@@ -47,7 +47,7 @@ class ServerData:
 	meetings_file = 'meetings.lst'
 	weekly_file = 'weekly_meetings.lst'
 	agenda_file = 'agenda_order.lst'
-	minutes_file = 'minutess_order.lst'
+	minutes_file = 'minutes_order.lst'
 	alert_file = 'alert_channel.cfg'
 	bdays_file = 'bdays.lst'
 
@@ -87,41 +87,103 @@ class ServerData:
 		# if the server folder doesn't exist, make one
 		if not os.path.isdir(ServerData.server_root):
 			os.mkdir(ServerData.server_root)
+		
 		# if the folder for this server's data doesn't exist, make it
 		if not os.path.isdir(self.folder_name):
 			os.mkdir(self.folder_name)
+		
 		# if any of the server's data files don't exist, make them
 		for file in data_files:
 			if not os.path.isfile(file):
 				Path(file).touch()
 		
-		# retrieve data from files
+		# retrive data from files
+
+		# agenda data
+
+		# read the agenda order file
+		with open(self.agenda_dir, 'r', encoding='utf8') as file:
+			lines = file.readlines()
+		
+		# remove the newline from each name and add it to the agenda order list
+		for line in lines[1:]:
+			self.agenda_order.append(line.strip())
+		
+		# if the file was empty
+		if len(lines) <= 0:
+			self.save_agenda()
+		else:
+			# remove newline from index
+			index = lines[0].strip()
+			# if the index is a positive integer
+			if index.isnumeric():
+				# grab the index
+				self.agenda_index = int(index)
+				# if the index is too big
+				if self.agenda_index >= len(self.agenda_order):
+					# set the index to 0 and update the data in the list's file
+					self.agenda_index = 0
+					self.save_agenda()
+			# if the index is not a positive integer, update the data in the list's file so the index in there will be 0
+			else:
+				self.save_agenda()
+		
+		# meeting minutes data
+
+		# read the meeting minutes order file
+		with open(self.minutes_dir, 'r', encoding='utf8') as file:
+			lines = file.readlines()
+		
+		# remove the newline from each name and add it to the meeting minutes order list
+		for line in lines[1:]:
+			self.minutes_order.append(line.strip())
+		
+		# if the file was empty
+		if len(lines) <= 0:
+			self.save_agenda()
+		else:
+			# remove newline from index
+			index = lines[0].strip()
+			# if the index is a positive integer
+			if index.isnumeric():
+				# grab the index
+				self.minutes_index = int(index)
+				# if the index is too big
+				if self.minutes_index >= len(self.minutes_order):
+					# set the index to 0 and update the data in the list's file
+					self.minutes_index = 0
+					self.save_minutes()
+			# if the index is not a positive integer, update the data in the list's file so the index in there will be 0
+			else:
+				self.save_minutes()
+
+		# meetings data
 
 		# flag if the list was updated while reading it
 		update = False
 		
 		# read the meetings file
 		with open(self.meetings_dir, 'r') as file:
-			meetings = file.readlines()
-			# get the current date and time
-			now = datetime.datetime.now()
-			# for each line that was read in the file
-			for meeting in meetings:
-				# get the date and time of the meeting from the string
-				try:
-					date = datetime.datetime.strptime(meeting, '%Y-%m-%d %H:%M:%S\n')
-				# just do the next line if this one is wrong
-				except:
-					continue
+			lines = file.readlines()
+		
+		# get the current date and time
+		now = datetime.datetime.now()
+		# for each line that was read in the file
+		for line in lines:
+			# get the date and time of the meeting from the string
+			try:
+				meeting = datetime.datetime.strptime(line, '%Y-%m-%d %H:%M:%S\n')
+			# just do the next line if this one is wrong
+			except:
+				continue
 
-				# if the meeting time is in the future, add it to the server's meetings list
-				if date > now:
-					self.add_meeting(date, save=False)
-				# if the meeting already happened, don't add it to the list and increment the agenda and minutes indexes
-				else:
-					update = True
-					self.inc_agenda()
-					self.inc_minutes()
+			# if the meeting time is in the future, add it to the server's meetings list
+			if meeting > now:
+				self.add_meeting(meeting, save=False)
+			# if the meeting already happened, don't add it to the list and increment the minutes index
+			else:
+				update = True
+				self.inc_minutes()
 		
 		# if there were any changes to the list while reading it, save the new list
 		if update:
@@ -130,6 +192,10 @@ class ServerData:
 	# adds a meeting time to the meeting list in sorted order with a binary search
 	# returns true if the meeting was added to the list, false if that time is already in the list
 	def add_meeting(self, time: datetime.datetime, save: bool = True) -> bool:
+		# if the max list length has already been reached
+		if len(self.meetings) >= ServerData.max_meetings:
+			return False
+		
 		# if the meeting list is empty, just add the meeting to the list
 		if len(self.meetings) == 0:
 			self.meetings.append(time)
@@ -186,6 +252,10 @@ class ServerData:
 	# adds a weekly meeting time to a weekly meeting list in sorted order with a binary search
 	# returns true if the meeting was added to the list, false if that time is already in the list
 	def add_weekly_meeting(self, time: datetime.datetime, save: bool = True) -> bool:
+		# if the max list length has already been reached
+		if len(self.weekly_meetings) >= ServerData.max_weekly_meetings:
+			return False
+
 		# if the meeting list is empty, just add the meeting to the list
 		if len(self.meetings) == 0:
 			self.weekly_meetings.append(time)
@@ -238,6 +308,10 @@ class ServerData:
 	# adds a birthday to the bday list in sorted order with a binary search
 	# returns true if the bday was added to the list, false if a bday on the same day for the same name is already in the list
 	def add_bday(self, bday: BDay, save: bool = True) -> bool:
+		# if the max list length has already been reached
+		if len(self.bdays) >= ServerData.max_bdays:
+			return False
+
 		# if the bday is empty, just add the bday to the list
 		if len(self.bdays) == 0:
 			self.bdays.append(bday)
@@ -366,20 +440,48 @@ class ServerData:
 			return False
 	
 	# sets the agenda notetaking order to a given list of names
-	def set_agenda_order(self, names: list, save: bool = True):
+	def set_agenda_order(self, names: list, save: bool = True) -> bool:
+		# if the names list is longer than the max allowed length
+		if len(names) >= ServerData.max_agenda_order:
+			return False
+		
+		# set the list and reset the index
 		self.agenda_order = names
 		self.agenda_index = 0
+
+		# saves the agenda order and index to the server folder
+		if save:
+			self.save_agenda()
+
+		return True
 	
 	# sets the meeting minutes notetaking order to a given list of names
-	def set_minutes_order(self, names: list, save: bool = True):
+	def set_minutes_order(self, names: list, save: bool = True) -> bool:
+		# if the names list is longer than the max allowed length
+		if len(names) >= ServerData.max_minutes_order:
+			return False
+		
+		# set the list and reset the index
 		self.minutes_order = names
 		self.minutes_index = 0
+
+		# saves the meeting minutes order and index to the server folder
+		if save:
+			self.save_minutes()
+
+		return True
 	
 	# sets the agenda index to the inputted name at that index
 	# returns true if the name was found, false if it wasn't
 	def set_agenda_to(self, name: str, save: bool = True) -> bool:
+		# if the name is in the list
 		if name in self.agenda_order:
+			# set the index to that name's index
 			self.agenda_index = self.agenda_order.find(name)
+			# saves the agenda order and index to the server folder
+			if save:
+				self.save_agenda()
+			
 			return True
 		else:
 			return False
@@ -387,21 +489,37 @@ class ServerData:
 	# sets the minutes index to the inputted name at that index
 	# returns true if the name was found, false if it wasn't
 	def set_minutes_to(self, name: str, save: bool = True) -> bool:
+		# if the name is in the list
 		if name in self.minutes_order:
+			# set the index to that name's index
 			self.minutes_index = self.minutes_order.find(name)
+			# saves the meeting minutes order and index to the server folder
+			if save:
+				self.save_minutes()
+			
 			return True
 		else:
 			return False
 	
 	# sets the agenda duty list to an empty list and the agenda index to 0
 	def clear_agenda_order(self, save: bool = True):
+		# clear the list and reset the index
 		self.agenda_order = []
 		self.agenda_index = 0
+
+		# saves the agenda order and index to the server folder
+		if save:
+			self.save_agenda()
 	
 	# sets the meeting minutes duty list to an empty list and the minutes index to 0
 	def clear_minutes_order(self, save: bool = True):
+		# clear the list an reset the index
 		self.minutes_order = []
 		self.minutes_index = 0
+
+		# saves the meeting minutes order and index to the server folder
+		if save:
+			self.save_minutes()
 	
 	# returns the first text channel that the bot has permission to send messages in, returns none if there are none
 	def find_first_message_channel(self):
@@ -425,12 +543,36 @@ class ServerData:
 	# saves the meetings list to the server's meetings file
 	def save_meetings(self):
 		file_lines = ''
-		# combine every date in the list into a string separating dates with newlines
+		# combine every item in the list into a newline separated string
 		for meeting in self.meetings:
 			file_lines += str(meeting) + '\n'
 		
 		# write the dates to the meetings file
 		with open(self.meetings_dir, 'w') as file:
+			file.write(file_lines)
+	
+	# saves the agenda order list and index to the server's agenda order file
+	def save_agenda(self):
+		file_lines = ''
+		# combine every item in the list into a newline separated string
+		for name in self.agenda_order:
+			file_lines += name + '\n'
+		
+		# write the index and the items to the data file
+		with open(self.agenda_dir, 'w', encoding='utf8') as file:
+			file.write(f'{self.agenda_index}\n')
+			file.write(file_lines)
+	
+	# saves the meeting minutes order list and index to the server's minutes order file
+	def save_minutes(self):
+		file_lines = ''
+		# combine every item in the list into a newline separated string
+		for name in self.minutes_order:
+			file_lines += name + '\n'
+		
+		# write the index and the items to the data file
+		with open(self.minutes_dir, 'w', encoding='utf8') as file:
+			file.write(f'{self.minutes_index}\n')
 			file.write(file_lines)
 
 ########################################################################################################################
@@ -1093,18 +1235,16 @@ async def set_command(message, command):
 						await react_with_x(message)
 						return
 			
-			# if agenda list was passed as an argument, set the agenda list to the new list
-			if command[1] == 'agenda':
-				server_data[message.guild].set_agenda_order(name_list)
-			# if the minutes list was passed as an argument, set the agenda list to the new list
-			elif command[1] == 'minutes':
-				server_data[message.guild].set_minutes_order(name_list)
+			# if agenda list was passed as an argument and the agenda order was successfully set
+			if command[1] == 'agenda' and server_data[message.guild].set_agenda_order(name_list):
+				await react_with_check(message)
+			# if the minutes list was passed as an argument and the minutes orer was successfully set
+			elif command[1] == 'minutes' and server_data[message.guild].set_minutes_order(name_list):
+				await react_with_check(message)
 			# if the argument isn't recognized
 			else:
 				await react_with_x(message)
 				return
-			
-			await react_with_check(message)
 		# if the user wants to skip to a person on the list
 		elif len(command) > 3 and command[2].lower() == 'to':
 			# set the 'agenda' / 'minutes' argument to all lowercase for easy comparison later
