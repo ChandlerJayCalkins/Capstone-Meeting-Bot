@@ -1,5 +1,5 @@
 # Capston-Meeting-Bot
-Code to make a Discord bot that keeps track of Senior Engineering Capstone Design meetings, agenda and meeting minutes duty, and birthdays too lol.
+Code for a Discord bot that keeps track of Senior Engineering Capstone Design meetings, agenda and meeting minutes duty, and birthdays too lol.
 Built for entineering students at the University of Idaho.
 Brief instructions for how to set up and run your own bot with this code are below.
 
