@@ -8,7 +8,7 @@ Code to make a Discord bot that keeps track of Senior Engineering Capstone Desig
 ### discord.py
 ```py -3 -m pip install -U discord.py```
 
-or, for voice support as well if you want (not required for this bot)
+or, for voice support as well if you want (not required for this bot),
 
 ```py -3 -m pip install -u discord.py\[voice\]```
 
@@ -17,7 +17,7 @@ or, for voice support as well if you want (not required for this bot)
 ### discord.py
 ```python3 -m pip install -U discord.py```
 
-or, for voice support as well if you want (not required for this bot)
+or, for voice support as well if you want (not required for this bot),
 
 ```python3 -m pip install -U discord.py\[voice\]```
 
