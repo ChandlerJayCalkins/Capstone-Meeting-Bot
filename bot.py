@@ -3,7 +3,42 @@ import sys
 import os
 import shutil
 import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
+
+########################################################################################################################
+#
+# global variables
+#
+########################################################################################################################
+
+# discord bot permissions
+perms = discord.Intents.default()
+perms.message_content = True
+
+# sets up the bot client
+client = discord.Client(intents = perms)
+
+# gets the secret bot token by reading it from a local txt file
+with open("token.txt", "r") as file:
+	bot_token = file.readline().strip()
+
+# strings for the bot to detect commands
+desktop_prefix = ""
+mobile_prefix = ""
+
+# used for keeping track of each server's meeting / dutyorders etc.
+# maps a discord guild object to a ServerData object
+server_data = {}
+
+# timezone that the bot is running in (change this yourself if you want the bot to use another time zone)
+timezone = ZoneInfo(key='US/Pacific')
+# alternate for auto-using your machine's local timezone:
+# timezone = ZoneInfo(key='localtime')
+
+# string for displaying the current timezone in a nice way since %Z in datetime.strftime() doesn't work that well
+# be sure to change this yourself as well if you using another timezone
+tzstr = 'PT'
 
 ########################################################################################################################
 #
@@ -31,14 +66,16 @@ class BDay:
 
 # class for storing a server's data (like agenda order list and meeting times)
 class ServerData:
-	################################################################################
+	###########################################################################
 	#
 	# fields
 	#
-	################################################################################
+	###########################################################################
 
 	# directory name of all server data
 	server_root = 'server_data'
+	# string format for datetimes in file saves
+	dtfstr = '%Y-%m-%d %H:%M:%S %z\n'
 	# max amounts of each type of data (to save drive and ram space)
 	max_meetings = 100
 	max_weekly_meetings = 100
@@ -53,11 +90,11 @@ class ServerData:
 	alert_file = 'alert_channel.cfg'
 	bdays_file = 'bdays.lst'
 
-	################################################################################
+	###########################################################################
 	#
 	# constructor
 	#
-	################################################################################
+	###########################################################################
 
 	def __init__(self, server):
 		# initialize fields
@@ -106,150 +143,24 @@ class ServerData:
 				Path(file).touch()
 		
 		# retrive data from files
+		# do agenda and minutes first since reading the meetings data can change the agenda and minutes data
 
-		# agenda data
-
-		# read the agenda order file
-		with open(self.agenda_path, 'r', encoding='utf8') as file:
-			lines = file.readlines()
-		
-		# remove the newline from each name and add it to the agenda order list
-		for line in lines[1:]:
-			self.agenda_order.append(line.strip())
-		
-		# if the file was empty
-		if len(lines) <= 0:
-			self.save_agenda()
-		else:
-			# remove newline from index
-			index = lines[0].strip()
-			# if the index is a positive integer
-			if index.isnumeric():
-				# grab the index
-				self.agenda_index = int(index)
-				# if the index is too big
-				if self.agenda_index >= len(self.agenda_order):
-					# set the index to 0 and update the data in the list's file
-					self.agenda_index = 0
-					self.save_agenda()
-			# if the index is not a positive integer, update the data in the list's file so the index in there will be 0
-			else:
-				self.save_agenda()
-		
-		# meeting minutes data
-
-		# read the meeting minutes order file
-		with open(self.minutes_path, 'r', encoding='utf8') as file:
-			lines = file.readlines()
-		
-		# remove the newline from each name and add it to the meeting minutes order list
-		for line in lines[1:]:
-			self.minutes_order.append(line.strip())
-		
-		# if the file was empty
-		if len(lines) <= 0:
-			self.save_agenda()
-		else:
-			# remove newline from index
-			index = lines[0].strip()
-			# if the index is a positive integer
-			if index.isnumeric():
-				# grab the index
-				self.minutes_index = int(index)
-				# if the index is too big
-				if self.minutes_index >= len(self.minutes_order):
-					# set the index to 0 and update the data in the list's file
-					self.minutes_index = 0
-					self.save_minutes()
-			# if the index is not a positive integer, update the data in the list's file so the index in there will be 0
-			else:
-				self.save_minutes()
-
-		# meeting data
-
-		# flag if the list was updated while reading it
-		update = False
-		
-		# read the meetings file
-		with open(self.meetings_path, 'r') as file:
-			lines = file.readlines()
-		
-		# get the current date and time
-		now = datetime.datetime.now()
-		# for each line that was read in the file
-		for line in lines:
-			# get the date and time of the meeting from the string
-			try:
-				meeting = datetime.datetime.strptime(line, '%Y-%m-%d %H:%M:%S\n')
-			# just do the next line if this one is wrong
-			except:
-				continue
-
-			# if the meeting time is in the future, add it to the server's meetings list
-			if meeting > now:
-				self.add_meeting(meeting, save=False)
-			# if the meeting already happened, don't add it to the list and increment the minutes index
-			else:
-				# set the update flag to true so the bot updates the data in the file
-				update = True
-				self.inc_minutes()
-		
-		# if there were any changes to the list while reading it, save the new list
-		if update:
-			self.save_meetings()
-		
+		# read saved agenda data
+		self.__read_agenda()
+		# read saved minutes data
+		self.__read_minutes()
+		# read saved meeting data
+		self.__read_meetings()
 		# weekly meeting data
-
-		# reset the flag
-		update = False
-
-		# birthday data
-
-		# reset the flag
-		update = False
-
-		# read the bdays file
-		with open(self.bdays_path, 'r') as file:
-			lines = file.readlines()
-		
-		# get the current date and time
-		now = datetime.datetime.now()
-		# for each line that was read in the file
-		for line in lines:
-			# get the name and datetime of the bday
-			try:
-				# assume the name of the bday goes up to the 20th last character, which is where the datetime should begin (including the newline char)
-				index = -20
-				name = line[:index].strip()
-				# get the datetime of the bday
-				date = datetime.datetime.strptime(line[index:], '%Y-%m-%d %H:%M:%S\n')
-			# set the update flag and do the next line if this one is wrong
-			except:
-				update = True
-				continue
-
-			# if the bday is in the past, update the year so it can be put back into the list
-			if date < now:
-				# set the update flag to true so the bot updates the data in the file
-				update = True
-				date.year = now.year
-				# if the bday is still in the past when is has the same year as now, set it's year to next year
-				if date < now:
-					date.year += 1
-			
-			# construct the bday object and add it to the list in order
-			bday = BDay(date, name)
-			self.add_bday(bday, save=False)
-		
-		# if there were any changes to the list while reading it, save the new list
-		if update:
-			self.save_bdays()
+		self.__read_weekly_meetings()
+		# read saved bday data
+		self.__read_bdays()
 	
-	################################################################################
+	###########################################################################
 	#
 	# setters
 	#
-	################################################################################
+	###########################################################################
 
 	# adds a meeting time to the meeting list in sorted order with a binary search
 	# returns true if the meeting was added to the list, false if that time is already in the list
@@ -365,6 +276,10 @@ class ServerData:
 			else:
 				return False
 		
+		# saves all of the weekly meetings to the server's weekly meetings file
+		if save:
+			self.save_weekly_meetings()
+		
 		return True
 	
 	# adds a birthday to the bday list in sorted order with a binary search
@@ -467,7 +382,7 @@ class ServerData:
 	
 	# removes weekly meetings from the server's list of weekly meetings given a list of arguments of the meetings' numbers
 	# returns true if all of the meetings were successfully removed, returns false if any of the meeting numbers wasn't valid
-	def remove_weekly_meetings(self, meeting_numbers: list, save_tsaveo_file: bool = True) -> bool:
+	def remove_weekly_meetings(self, meeting_numbers: list, save: bool = True) -> bool:
 		meeting_indexes = []
 		# loop through each argument
 		for arg in meeting_numbers:
@@ -489,6 +404,10 @@ class ServerData:
 		# remove each meeting from the list in reverse order
 		for i in meeting_indexes:
 			self.weekly_meetings.pop(i - 1)
+		
+		# saves all of the remaining meetings to the server's meetings file
+		if save:
+			self.save_weekly_meetings()
 		
 		return True
 	
@@ -591,6 +510,22 @@ class ServerData:
 		if save:
 			self.save_minutes()
 	
+	# increases the agenda order index by i (default 1), loops back to the start if it's at the end
+	def inc_agenda(self, i: int = 1, save: bool = True):
+		self.agenda_index = (self.agenda_index + i) % len(self.agenda_order)
+
+		# saves the agenda data
+		if save:
+			self.save_agenda()
+	
+	# increases the meeting minutes order index by i (default 1), loops back to the start if it's at the end
+	def inc_minutes(self, i: int = 1, save: bool = True):
+		self.minutes_index = (self.minutes_index + i) % len(self.minutes_order)
+
+		# saves the meeting minutes data
+		if save:
+			self.save_minutes()
+
 	# returns the first text channel that the bot has permission to send messages in, returns none if there are none
 	def find_first_message_channel(self):
 		for channel in self.server.text_channels:
@@ -598,33 +533,32 @@ class ServerData:
 			if channel_perms.send_messages:
 				return channel
 	
-	# increments the agenda order index to the next person in the list, loops back to the start if it's at the end
-	def inc_agenda(self):
-		self.agenda_index += 1
-		if self.agenda_index >= len(self.agenda_order):
-			self.agenda_index = 0
-	
-	# increments the meeting minutes order index to the next person in the list, loops back to the start if it's at the end
-	def inc_minutes(self):
-		self.minutes_index += 1
-		if self.minutes_index >= len(self.minutes_order):
-			self.minutes_index = 0
-	
-	################################################################################
+	###########################################################################
 	#
 	# data backup / saving functions
 	#
-	################################################################################
+	###########################################################################
 
 	# saves the meetings list to the server's meetings file
 	def save_meetings(self):
 		file_lines = ''
 		# combine every item in the list into a newline separated string
 		for meeting in self.meetings:
-			file_lines += meeting.strftime('%Y-%m-%d %H:%M:%S\n')
+			file_lines += meeting.strftime(ServerData.dtfstr)
 		
 		# write the dates to the meetings file
 		with open(self.meetings_path, 'w') as file:
+			file.write(file_lines)
+	
+	# saves the weekly meetings list to the server's weekly meetings file
+	def save_weekly_meetings(self):
+		file_lines = ''
+		# combine every item in the list into a newline separated string
+		for meeting in self.weekly_meetings:
+			file_lines += meeting.strftime(ServerData.dtfstr)
+		
+		# write the dates to the meetings file
+		with open(self.weekly_path, 'w') as file:
 			file.write(file_lines)
 	
 	# saves the agenda order list and index to the server's agenda order file
@@ -656,37 +590,215 @@ class ServerData:
 		file_lines = ''
 		# combine every item in the list into a newline separated string
 		for bday in self.bdays:
-			date_str = bday.date.strftime('%Y-%m-%d %H:%M:%S')
+			date_str = bday.date.strftime(ServerData.dtfstr)
 			file_lines += f'{bday.name} {date_str}\n'
 		
 		# write the dates to the meetings file
 		with open(self.bdays_path, 'w') as file:
 			file.write(file_lines)
+	
+	###########################################################################
+	#
+	# private functions
+	#
+	###########################################################################
+
+	# reads data from the meetings file, stores it in this object, and updates the file if needed
+	def __read_meetings(self):
+		# flag if the list was updated while reading it
+		update = False
+		
+		# read the meetings file
+		with open(self.meetings_path, 'r') as file:
+			lines = file.readlines()
+		
+		# get the current date and time
+		now = datetime.datetime.now(timezone)
+		# for each line that was read in the file
+		for line in lines:
+			# get the date and time of the meeting from the string
+			try:
+				meeting = datetime.datetime.strptime(line, ServerData.dtfstr)
+			# just do the next line if this one is wrong
+			except:
+				continue
+
+			# if the meeting time is in the future, add it to the server's meetings list
+			if meeting > now:
+				self.add_meeting(meeting, save=False)
+			# if the meeting already happened, don't add it to the list and increment the minutes index
+			else:
+				# set the update flag to true so the bot will update the data in the file
+				update = True
+				self.inc_minutes()
+		
+		# if there were any changes to the list while reading it, save the new list
+		if update:
+			self.save_meetings()
+	
+	# reads data from the weekly meetings file, stores it in this object, and updates the file if needed
+	def __read_weekly_meetings(self):
+		# flag if the list was updated while reading it
+		update = False
+
+		# read the weekly meetings file
+		with open(self.weekly_path, 'r') as file:
+			lines = file.readlines()
+		
+		# get the current date and time
+		now = datetime.datetime.now(timezone)
+		# for each line that was read in the file
+		for line in lines:
+			# get the date and time of the meeting from the string
+			try:
+				meeting = datetime.datetime.strptime(line, ServerData.dtfstr)
+			# just do the next line if this one is wrong
+			except:
+				print('here')
+				continue
+
+			# if the meeting time is in the past
+			if meeting < now:
+				# set the update flag to true so the bot will update the data in the file
+				update = True
+				# calculate how much time has passed since this meeting
+				delta = now - meeting
+				# calculate how many of these weekly meetings were missed
+				meetings_missed = delta.days // 7
+				delta_week_mod = delta.days % 7
+				# if today is the same weekday day as this weekly meeting
+				if delta_week_mod == 0:
+					today_meeting = meeting + delta
+					# if the meeting has already happened today
+					if today_meeting < now:
+						# make it so this weekly meeting will be stored as next week
+						delta_week_mod = 14
+					# if it hasn't happened yet today
+					else:
+						# don't include this meeting as being missed
+						meetings_missed -= 1
+				
+				# calculate how many days to add to the meeting to put it to the next weekly occurrence
+				delta = datetime.timedelta(days = delta.days + (7 - delta_week_mod))
+				print(delta.days % 7)
+				# add the days to the meeting time
+				meeting += delta
+				# increase the agenda and meeting minutes indexes for how many meetings were missed
+				self.inc_agenda(meetings_missed)
+				self.inc_minutes(meetings_missed)
+			
+			# add the meeting to the weekly meetings list
+			self.add_weekly_meeting(meeting, save=False)
+		
+		# if there were any changes to the list while reading it, save the new list
+		if update:
+			self.save_weekly_meetings()
+	
+	# reads data from the agenda order file, stores it in this object, and updates the file if needed
+	def __read_agenda(self):
+		# read the agenda order file
+		with open(self.agenda_path, 'r', encoding='utf8') as file:
+			lines = file.readlines()
+		
+		# remove the newline from each name and add it to the agenda order list
+		for line in lines[1:]:
+			self.agenda_order.append(line.strip())
+		
+		# if the file was empty
+		if len(lines) <= 0:
+			self.save_agenda()
+		else:
+			# remove newline from index
+			index = lines[0].strip()
+			# if the index is a positive integer
+			if index.isnumeric():
+				# grab the index
+				self.agenda_index = int(index)
+				# if the index is too big
+				if self.agenda_index >= len(self.agenda_order):
+					# set the index to 0 and update the data in the list's file
+					self.agenda_index = 0
+					self.save_agenda()
+			# if the index is not a positive integer, update the data in the list's file so the index in there will be 0
+			else:
+				self.save_agenda()
+	
+	# reads data from the meeting minutes order file, stores it in this object, and updates the file if needed
+	def __read_minutes(self):
+		# read the meeting minutes order file
+		with open(self.minutes_path, 'r', encoding='utf8') as file:
+			lines = file.readlines()
+		
+		# remove the newline from each name and add it to the meeting minutes order list
+		for line in lines[1:]:
+			self.minutes_order.append(line.strip())
+		
+		# if the file was empty
+		if len(lines) <= 0:
+			self.save_agenda()
+		else:
+			# remove newline from index
+			index = lines[0].strip()
+			# if the index is a positive integer
+			if index.isnumeric():
+				# grab the index
+				self.minutes_index = int(index)
+				# if the index is too big
+				if self.minutes_index >= len(self.minutes_order):
+					# set the index to 0 and update the data in the list's file
+					self.minutes_index = 0
+					self.save_minutes()
+			# if the index is not a positive integer, update the data in the list's file so the index in there will be 0
+			else:
+				self.save_minutes()
+	
+	# reads data from th birthdays file, stores it in this object, and updates the file if needed
+	def __read_bdays(self):
+		# flag if the list was updated while reading it
+		update = False
+
+		# read the bdays file
+		with open(self.bdays_path, 'r') as file:
+			lines = file.readlines()
+		
+		# get the current date and time
+		now = datetime.datetime.now(timezone)
+		# for each line that was read in the file
+		for line in lines:
+			# get the name and datetime of the bday
+			try:
+				# assume the name of the bday goes up to the 20th last character, which is where the datetime should begin (including the newline char)
+				index = -20
+				name = line[:index].strip()
+				# get the datetime of the bday
+				date = datetime.datetime.strptime(line[index:], ServerData.dtfstr)
+			# set the update flag and do the next line if this one is wrong
+			except:
+				update = True
+				continue
+
+			# if the bday is in the past, update the year so it can be put back into the list
+			if date < now:
+				# set the update flag to true so the bot will update the data in the file
+				update = True
+				date.year = now.year
+				# if the bday is still in the past when is has the same year as now, set it's year to next year
+				if date < now:
+					date.year += 1
+			
+			# construct the bday object and add it to the list in order
+			bday = BDay(date, name)
+			self.add_bday(bday, save=False)
+		
+		# if there were any changes to the list while reading it, save the new list
+		if update:
+			self.save_bdays()
 
 ########################################################################################################################
 #
 # startup instructions
 #
 ########################################################################################################################
-
-# discord bot permissions
-perms = discord.Intents.default()
-perms.message_content = True
-
-# sets up the bot client
-client = discord.Client(intents = perms)
-
-# gets the secret bot token by reading it from a local txt file
-with open("token.txt", "r") as file:
-	bot_token = file.readline().strip()
-
-# strings for the bot to detect commands
-desktop_prefix = ""
-mobile_prefix = ""
-
-# used for keeping track of each server's meeting / dutyorders etc.
-# maps a discord guild object to a ServerData object
-server_data = {}
 
 # called as soon as the bot is fully online and operational
 @client.event
@@ -1074,19 +1186,19 @@ async def add_command(message, command):
 			# if the year wasn't inputted
 			if year is None:
 				if valid_date(day, month):
-					now = datetime.datetime.now()
-					meeting = datetime.datetime(now.year, month, day, hour=hour, minute=minute)
+					now = datetime.datetime.now(timezone)
+					meeting = datetime.datetime(now.year, month, day, hour=hour, minute=minute, tzinfo=timezone)
 					# if the meeting date is before now, increment it by a year
 					if meeting < now:
-						meeting = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute)
+						meeting = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute, tzinfo=timezone)
 				else:
 					await react_with_x(message)
 					return
 			# if a year was inputted
 			else:
 				if valid_date(day, month, year=year):
-					meeting = datetime.datetime(year, month, day, hour=hour, minute=minute)
-					now = datetime.datetime.now()
+					meeting = datetime.datetime(year, month, day, hour=hour, minute=minute, tzinfo=timezone)
+					now = datetime.datetime.now(timezone)
 					if meeting < now:
 						await react_with_x(message)
 						return
@@ -1126,19 +1238,19 @@ async def add_command(message, command):
 			# convert weekday to next datetime on that weekday
 
 			# set meeting time to today at the inputted hour and minute by default
-			now = datetime.datetime.now()
-			meeting_time = datetime.datetime(now.year, now.month, now.day, hour=hour, minute=minute)
+			now = datetime.datetime.now(timezone)
+			meeting = datetime.datetime(now.year, now.month, now.day, hour=hour, minute=minute, tzinfo=timezone)
 			# if the meeting weekday is later in the week
 			if day > now.weekday():
 				# set the meeting time to the right day later this week
 				delta = datetime.timedelta(days=(day - now.weekday()))
-				meeting_time += delta
+				meeting += delta
 			# if the meeting weekday is earlier in the week or on the same day but at an earlier time in the day
 			elif day < now.weekday() or (day == now.weekday() and (hour < now.hour or (hour == now.hour and minute <= now.minute))):
 				# set the meeting time to the right day next week
-				meeting_time = datetime.datetime(now.year, now.month, now.day, hour=hour, minute=minute)
+				meeting = datetime.datetime(now.year, now.month, now.day, hour=hour, minute=minute, tzinfo=timezone)
 				delta = datetime.timedelta(days=(7 - now.weekday() + day))
-				meeting_time += delta
+				meeting += delta
 			
 			# add day and time to list
 
@@ -1168,11 +1280,11 @@ async def add_command(message, command):
 			# if the year wasn't inputted
 			if year is None:
 				if valid_date(day, month):
-					now = datetime.datetime.now()
-					meeting = datetime.datetime(now.year, month, day, hour=hour, minute=minute)
+					now = datetime.datetime.now(timezone)
+					meeting = datetime.datetime(now.year, month, day, hour=hour, minute=minute, tzinfo=timezone)
 					# if the meeting date is before now, increment it by a year
 					if meeting < now:
-						meeting = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute)
+						meeting = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute, tzinfo=timezone)
 				else:
 					await react_with_x(message)
 					return
@@ -1244,11 +1356,11 @@ async def remove_command(message, command):
 			# if the year wasn't inputted
 			if year is None:
 				if valid_date(day, month):
-					now = datetime.datetime.now()
-					meeting = datetime.datetime(now.year, month, day, hour=hour, minute=minute)
+					now = datetime.datetime.now(timezone)
+					meeting = datetime.datetime(now.year, month, day, hour=hour, minute=minute, tzinfo=timezone)
 					# if the meeting date is before now, increment it by a year
 					if meeting < now:
-						meeting = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute)
+						meeting = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute, tzinfo=timezone)
 				else:
 					await react_with_x(message)
 					return
@@ -1288,9 +1400,9 @@ async def meetings_command(message):
 				# Who is responsible for making this function and how the fuck were they allowed to contribute to python in the first place
 				# What else has this individual / these individuals fucked up with this language
 				# Linux version:
-				# meeting_str = server_data[message.guild].meetings[i].strftime('%A %b %-d %Y at %-H:%M / %-I:%M %p')
+				# meeting_str = server_data[message.guild].meetings[i].strftime(f'%A %b %-d %Y at %-H:%M / %-I:%M %p {tzstr}')
 				# Windows version:
-				meeting_str = server_data[message.guild].meetings[i].strftime('%A %b %#d %Y at %#H:%M / %#I:%M %p')
+				meeting_str = server_data[message.guild].meetings[i].strftime(f'%A %b %#d %Y at %#H:%M / %#I:%M %p {tzstr}')
 				reply += f'**{i+1}. {meeting_str}**\n\n'
 
 		reply += '```Weekly Meetings```\n'
@@ -1303,9 +1415,9 @@ async def meetings_command(message):
 			# display all of the weekly meetings in a numbered list
 			for i in range(len(server_data[message.guild].weekly_meetings)):
 				# Linux version:
-				# meeting_str = server_data[message.guild].weekly_meetings[i].strftime('%As at %-H:%M / %-I:%M %p')
+				# meeting_str = server_data[message.guild].weekly_meetings[i].strftime(f'%As at %-H:%M / %-I:%M %p {tzstr}')
 				# Windows version:
-				meeting_str = server_data[message.guild].weekly_meetings[i].strftime('%As at %#H:%M / %#I:%M %p')
+				meeting_str = server_data[message.guild].weekly_meetings[i].strftime(f'%As at %#H:%M / %#I:%M %p {tzstr}')
 				reply += f'**{i+1}. {meeting_str}**\n\n'
 		
 		await safe_reply(message, reply)
