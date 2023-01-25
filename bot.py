@@ -842,10 +842,10 @@ async def on_guild_join(server):
 	else:
 		channel = ServerData.find_first_message_channel(server)
 		if channel is not None:
-			message = f'Bot is already at max servers ({ServerData.max_servers}). '
+			message = f'I am already in my maximum amount of servers ({ServerData.max_servers}). '
 			if contact_info != '':
-				message += f'Contact the bot owner if you wish to reserve a spot for your server with the bot ({contact_info}). '
-				message += 'You can also visit this bot\'s repository for more info(https://github.com/ChandlerJayCalkins/Capstone-Meeting-Bot). '
+				message += f'Contact my owner if you wish to reserve a spot for your server with the me ({contact_info}). '
+				message += 'You can also visit the repository for my code for more info(https://github.com/ChandlerJayCalkins/Capstone-Meeting-Bot). '
 			message += 'Leaving server...'
 			channel.send(message)
 		await server.leave()
@@ -944,12 +944,12 @@ async def help_command(message, command = ''):
 		# if info on the help command was requested
 		if command == 'help':
 			# list of string lines that the bot will reply to the help command with
-			reply = f'`{command}:` Gives info about the bot and it\'s commands.\n\n'
+			reply = f'`{command}:` Gives info about the me and my commands!\n\n'
 
 			reply += '```Usages:```\n'
 
 			reply += f'**{desktop_prefix} help**\n'
-			reply += 'This will print out the default help message that shows how to use the bot and lists all of the bot\'s commands.\n\n'
+			reply += 'This will print out the default help message that shows how to use me and lists all of my commands.\n\n'
 
 			reply += f'**{desktop_prefix} help [command]**\n'
 			reply += 'Gives info on [command].\n'
@@ -964,25 +964,25 @@ async def help_command(message, command = ''):
 		# if the info on the add command was requested
 		elif command == 'add':
 			# list of string lines that the bot will reply to the help command with
-			reply = f'`{command}:` Adds a meeting or a birthday to the bot so it can remind you about it.\n\n'
+			reply = f'`{command}:` Adds a meeting or a birthday for me to keep track of so I can remind you about it.\n\n'
 
 			reply += '```Usages:```\n'
 
 			reply += f'**{desktop_prefix} add meeting on [date] at [time]**\n'
-			reply += 'This will add a meeting to the bot, and the bot will remind you about the meeting on [date] a few minutes before [time] and then forget about it.\n'
+			reply += 'This will add a meeting to keep track of and I will remind you about the meeting on [date] a few minutes before [time] and then forget about it.\n'
 			reply += 'Note: you cannot add a meeting with the exact same time and date as an already existing meeting.\n\n'
 
 			reply += f'**{desktop_prefix} add weekly meeting on [day] at [time]**\n'
-			reply += 'This will add a meeting to the bot that recurs every week, and the bot will remind you about the meeting every week on [day] a few minutes before [time].\n'
+			reply += 'This will add a meeting to to keep track of that recurs every week and I will remind you about the meeting every week on [day] a few minutes before [time].\n'
 			reply += 'Note: you cannot add a weekly meeting with the exact same time and day as an already existing weekly meeting.\n\n'
 
 			reply += f'**{desktop_prefix} add bday on [date] for [name]**\n'
-			reply += 'This will add a birthday to the bot, and the bot will say happy birthday on [date] to [name].\n'
+			reply += 'This will add a birthday to keep track of and I will say happy birthday on [date] to [name].\n'
 			reply += 'Note: you cannot add a birthday for a person with the exact same name and date as an already existing birthday.\n\n'
 
 			reply += '**Formatting:**\n\n'
 			reply += '**[date]:** YYYY/M/D or YYYY-M-D M/D or M-D (YYYY = year (1 <= YYYY <= 9999), M = month (1 <= M <= 12), D = day (1 <= D <= 31)).\n'
-			reply += 'Note: if the year is not inputted in the date, the next available date on M/D will be inputted. The bot will ignore years on bday inputs.\n'
+			reply += 'Note: if the year is not inputted in the date, the next available date on M/D will be inputted. I will ignore years on bday inputs.\n'
 			reply += '**[time]:** H:M or H:M am/pm or H or H am/pm (H = hour (1 <= H <= 12 or 1 <= H <= 24), M = minute (1 <= M <= 59)).\n'
 			reply += '**[day]:** Sundays: (su, sun, sunday, sundays), Mondays: (m, mon, monday, mondays), Tuesdays: (tu, tue, tues, tuesday, tuesdays), '
 			reply += 'Wednesdays: (w, wed, wednesday, wednesdays), Thursdays: (th, thu, thur, thurs, thursday, thursdays), Fridays: (f, fri, friday, fridays), '
@@ -1004,7 +1004,7 @@ async def help_command(message, command = ''):
 		# if the info on the remove command was requested
 		elif command == 'remove':
 			# list of string lines that the bot will reply to the help command with
-			reply = f'`{command}:` Removes a meeting, a birthday, or clear the agenda or meeting minutes duty list from the bot.\n\n'
+			reply = f'`{command}:` Removes a meeting, a birthday, or clear the agenda or meeting minutes duty list from my memory.\n\n'
 
 			reply += '```Usages:```\n'
 
@@ -1055,7 +1055,7 @@ async def help_command(message, command = ''):
 			reply += '```Usage:```\n'
 
 			reply += f'**{desktop_prefix} meetings**\n'
-			reply += 'This will display all meetings and weekly meetings that the bot is currently storing along with each meeting\'s removal number.\n'
+			reply += 'This will display all meetings and weekly meetings that I am currently keeping track of along with each meeting\'s removal number.\n'
 			reply += 'Note: See how to use the meeting removal numbers and remove meetings in the "remove" command info, as well as how to add '
 			reply += 'meetings in the "add" command info.'
 
@@ -1069,16 +1069,16 @@ async def help_command(message, command = ''):
 
 			reply += f'**{desktop_prefix} set agenda order as [name], [name], [name], ...**\n'
 			reply += 'This will set the agenda notetaking order as the list of names at the end of the command.\n'
-			reply += 'It will also reset the agenda notetaking list to start at the first name in this command and work it\'s way down.\n'
-			reply += 'Every time there is a meeting, the bot will remind you whose turn it is on agenda, and after the meeting has started '
-			reply += 'it will move onto the next person in the list for the next meeting.\n'
+			reply += 'I will also reset the agenda notetaking list to start at the first name in this command and work my way down.\n'
+			reply += 'Every time there is a meeting I will remind you whose turn it is on agenda, and after the meeting has started '
+			reply += 'I will move onto the next person in the list for the next meeting.\n'
 			reply += 'Note: See the current agenda order in the "dutyorder" command info.\n\n'
 
 			reply += f'**{desktop_prefix} set minutes order as [name], [name], [name], ...**\n'
 			reply += 'This will set the meeting minutes notetaking order as the list of names at the end of the command.\n'
-			reply += 'It will also reset the meeting minutes notetaking list to start at the first name in this command and work it\'s way down.\n'
-			reply += 'Every time there is a meeting, the bot will remind you whose turn it is on minutes, and after the meeting has started '
-			reply += 'it will move onto the next person in the list for the next meeting.\n'
+			reply += 'I will also reset the meeting minutes notetaking list to start at the first name in this command and work my way down.\n'
+			reply += 'Every time there is a meeting, I will remind you whose turn it is on minutes, and after the meeting has started '
+			reply += 'I will move onto the next person in the list for the next meeting.\n'
 			reply += 'Note: See the current meeting minutes order in the "dutyorder" command info.\n\n'
 
 			reply += f'**{desktop_prefix} set agenda to [name]**\n'
@@ -1115,26 +1115,26 @@ async def help_command(message, command = ''):
 		# if the info on the alert command was requested
 		elif command == 'alert':
 			# list of string lines that the bot will reply to the help command with
-			reply = f'`{command}:` Sets the channel that the bot sends meeting and birthday alerts in and displays what the alert channel is set to.\n\n'
+			reply = f'`{command}:` Sets the channel that I send meeting and birthday alerts in and displays what the alert channel is set to.\n\n'
 
 			reply += '```Usages:```\n'
 
 			reply += f'**{desktop_prefix} alert here**\n'
-			reply += 'This will set the channel that the bot sends meeting and birthday alerts in to the channel that the command was sent in.\n\n'
+			reply += 'This will set the channel that I send meeting and birthday alerts in to the channel that the command was sent in.\n\n'
 
 			reply += f'**{desktop_prefix} alert channel**\n'
-			reply += 'This will display what channel the bot is currently using as the alert channel.'
+			reply += 'This will display what channel I am currently using as the alert channel.'
 
 			await safe_reply(message, reply)
 		# if the info on the bdays command was requested
 		elif command == 'bdays':
 			# list of string lines that the bot will reply to the help command with
-			reply = f'`{command}:` Displays all birthdays the bot is currently keeping track of.\n\n'
+			reply = f'`{command}:` Displays all birthdays I am currently keeping track of.\n\n'
 
 			reply += '```Usage:```\n'
 
 			reply += f'**{desktop_prefix} bdays**\n'
-			reply += 'This will display all birthdays that the bot is currently keeping track of to say happy birthday to.\n'
+			reply += 'This will display all birthdays that I am currently keeping track of to say happy birthday to.\n'
 			reply += 'Note: See how to add and remove birthdays in the "add" and "remove" command infos.'
 
 			await safe_reply(message, reply)
@@ -1155,11 +1155,11 @@ async def help_command(message, command = ''):
 			
 			reply += '\n```Notes:```\n'
 
-			reply += '- The bot will `@everyone` 30 minutes before and at the start of every meeting and weekly meeting.\n'
-			reply += '- The bot will show who is on agenda and meeting minutes duty every time it gives a meeting alert.\n'
-			reply += '- The bot will increment to the next person on meeting minutes duty after every meeting.\n'
-			reply += '- The bot will increment to the next person on both agenda and meeting minutes duty after every weekly meeting.\n'
-			reply += '- The bot only processes times in the timezone that it is running in (currently Pacific Time (PST and PDT)).\n\n'
+			reply += '- I will `@everyone` 30 minutes before and at the start of every meeting and weekly meeting.\n'
+			reply += '- I will show who is on agenda and meeting minutes duty every time I give a meeting alert.\n'
+			reply += '- I will increment to the next person on meeting minutes duty after every meeting.\n'
+			reply += '- I will increment to the next person on both agenda and meeting minutes duty after every weekly meeting.\n'
+			reply += f'- I only processes times in the timezone that I am running in (currently {tzstr}).\n\n'
 
 			reply += '**Maximum Number of:**\n'
 			reply += f'Meetings: {ServerData.max_meetings}\n'
@@ -1167,12 +1167,12 @@ async def help_command(message, command = ''):
 			reply += f'Names on Agenda Duty: {ServerData.max_agenda_order}\n'
 			reply += f'Names on Meeting Minutes Duty: {ServerData.max_minutes_order}\n'
 			reply += f'Birthdays: {ServerData.max_bdays}\n'
-			reply += f'Servers the bot can be in: {ServerData.max_servers}\n\n'
+			reply += f'Servers I can be in: {ServerData.max_servers}\n\n'
 
 			# if the bot runner has supplied contact info to refer to
 			if contact_info != '':
-				reply += f'Contact the bot\'s owner if you are having problems ({contact_info}).\n'
-			reply += 'If you want more info, visit the repository for this bot at https://github.com/ChandlerJayCalkins/Capstone-Meeting-Bot !'
+				reply += f'Contact my owner if you are having problems ({contact_info}).\n'
+			reply += 'If you want more info, visit the repository for my code at https://github.com/ChandlerJayCalkins/Capstone-Meeting-Bot !'
 			
 			await safe_reply(message, reply)
 	# if the bot doesn't have permission to send message in the channel, react to the message with an x
