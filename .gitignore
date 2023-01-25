@@ -1,6 +1,7 @@
 # Custom ignores:
 
 token.txt
+contact_info.txt
 server_data/*
 
 # Python gitignore template:

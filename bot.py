@@ -40,6 +40,12 @@ timezone = ZoneInfo(key='US/Pacific')
 # be sure to change this yourself as well if you using another timezone
 tzstr = 'PT'
 
+# string for displaying the contact info users can use to reach out if they have problems with the bot
+contact_info = ""
+if os.path.isfile("contact_info.txt"):
+	with open("contact_info.txt", "r") as file:
+		contact_info = file.readline().strip()
+
 ########################################################################################################################
 #
 # class definitions
@@ -76,6 +82,8 @@ class ServerData:
 	server_root = 'server_data'
 	# string format for datetimes in file saves
 	dtfstr = '%Y-%m-%d %H:%M:%S %z\n'
+	# max number of servers that the bot can be in (to save drive and ram space)
+	max_servers = 100
 	# max amounts of each type of data (to save drive and ram space)
 	max_meetings = 100
 	max_weekly_meetings = 100
@@ -108,7 +116,7 @@ class ServerData:
 		self.next_meeting = None
 		self.next_weekly_meeting = None
 		# set the meeting / bday alert channel to the first channel that the bot has message sending permissions in
-		self.alert_channel = self.find_first_message_channel()
+		self.alert_channel = ServerData.find_first_message_channel(server)
 		self.bdays = []
 
 		# create necessary folders and files if they don't already exist
@@ -155,6 +163,19 @@ class ServerData:
 		self.__read_weekly_meetings()
 		# read saved bday data
 		self.__read_bdays()
+	
+	###########################################################################
+	#
+	# static functions
+	#
+	###########################################################################
+
+	# returns the first text channel that the bot has permission to send messages in, returns none if there are none
+	def find_first_message_channel(server):
+		for channel in server.text_channels:
+			channel_perms = channel.permissions_for(server.me)
+			if channel_perms.send_messages:
+				return channel
 	
 	###########################################################################
 	#
@@ -525,13 +546,6 @@ class ServerData:
 		# saves the meeting minutes data
 		if save:
 			self.save_minutes()
-
-	# returns the first text channel that the bot has permission to send messages in, returns none if there are none
-	def find_first_message_channel(self):
-		for channel in self.server.text_channels:
-			channel_perms = channel.permissions_for(self.server.me)
-			if channel_perms.send_messages:
-				return channel
 	
 	###########################################################################
 	#
@@ -823,7 +837,17 @@ async def on_ready():
 # sets up the bot for a new server every time it joins one while running
 @client.event
 async def on_guild_join(server):
-	server_data[server] = ServerData(server)
+	if len(server_data) <= 100:
+		server_data[server] = ServerData(server)
+	else:
+		channel = ServerData.find_first_message_channel(server)
+		if channel is not None:
+			message = f'Bot is already at max servers ({ServerData.max_servers}). '
+			if contact_info != '':
+				message += f'Contact the bot owner if you wish to reserve a spot for your server with the bot ({contact_info}). '
+			message += 'Leaving server...'
+			channel.send(message)
+		await server.leave()
 
 # removes all of a server's data when the bot leaves a server
 @client.event
@@ -1143,6 +1167,9 @@ async def help_command(message, command = ''):
 			reply += f'Names on Meeting Minutes Duty: {ServerData.max_minutes_order}\n'
 			reply += f'Birthdays: {ServerData.max_bdays}\n\n'
 
+			# if the bot runner has supplied contact info to refer to
+			if contact_info != '':
+				reply += f'Contact the bot\'s owner if you are having problems ({contact_info}).\n'
 			reply += 'If you want more info, visit the repository for this bot at https://github.com/ChandlerJayCalkins/Capston-Meeting-Bot !'
 			
 			await safe_reply(message, reply)
@@ -1561,7 +1588,7 @@ async def alert_command(message, command):
 				# if the bot doesn't have an alert channel
 				if server_data[message.guild].alert_channel is None:
 					# look for one again
-					server_data[message.guild].alert_channel = server_data[message.guild].find_first_message_server()
+					server_data[message.guild].alert_channel = ServerData.find_first_message_server(message.guild)
 					# if the bot still can't find an alert channel
 					if server_data[message.guild].alert_channel is None:
 						await react_with_x(message)

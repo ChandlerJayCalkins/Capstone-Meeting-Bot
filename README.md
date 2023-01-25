@@ -40,6 +40,12 @@ Copy your discord bot's token and paste into a file called "`token.txt`" in the 
 Make sure the file has nothing else in it except the token.
 To create your own discord bot and get it's token, go to [the Discord Developer Portal](https://discord.com/developers/applications).
 
+# Contact Info
+
+Just like above, create a file called "`contact_info.txt`" in the root directory of this repository, and put a string that will display your contact info in it on the first line.
+The bot will display this string to users so if they are having ay problems with it, they can contact you.
+This is optional, the bot will still run without this file or if it's empty.
+
 # Required Server Permissions for the Bot
 - [x] Send Messages
 - [x] Send Messages in Threads
