@@ -16,9 +16,9 @@ or, for voice support as well if you want (not required for this bot),
 
 ```py -3 -m pip install -u discord.py[voice]```
 
-### pytz
+### zoneinfo
 
-```pip install pytz```
+```pip install tzdata```
 
 ## Linux
 
