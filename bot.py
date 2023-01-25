@@ -845,6 +845,7 @@ async def on_guild_join(server):
 			message = f'Bot is already at max servers ({ServerData.max_servers}). '
 			if contact_info != '':
 				message += f'Contact the bot owner if you wish to reserve a spot for your server with the bot ({contact_info}). '
+				message += 'You can also visit this bot\'s repository for more info(https://github.com/ChandlerJayCalkins/Capstone-Meeting-Bot). '
 			message += 'Leaving server...'
 			channel.send(message)
 		await server.leave()
@@ -1165,12 +1166,13 @@ async def help_command(message, command = ''):
 			reply += f'Weekly Meetings: {ServerData.max_weekly_meetings}\n'
 			reply += f'Names on Agenda Duty: {ServerData.max_agenda_order}\n'
 			reply += f'Names on Meeting Minutes Duty: {ServerData.max_minutes_order}\n'
-			reply += f'Birthdays: {ServerData.max_bdays}\n\n'
+			reply += f'Birthdays: {ServerData.max_bdays}\n'
+			reply += f'Servers the bot can be in: {ServerData.max_servers}\n\n'
 
 			# if the bot runner has supplied contact info to refer to
 			if contact_info != '':
 				reply += f'Contact the bot\'s owner if you are having problems ({contact_info}).\n'
-			reply += 'If you want more info, visit the repository for this bot at https://github.com/ChandlerJayCalkins/Capston-Meeting-Bot !'
+			reply += 'If you want more info, visit the repository for this bot at https://github.com/ChandlerJayCalkins/Capstone-Meeting-Bot !'
 			
 			await safe_reply(message, reply)
 	# if the bot doesn't have permission to send message in the channel, react to the message with an x
