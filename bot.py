@@ -613,7 +613,7 @@ class ServerData:
 	
 	###########################################################################
 	#
-	# private functions
+	# data reading functions
 	#
 	###########################################################################
 
@@ -807,6 +807,32 @@ class ServerData:
 		# if there were any changes to the list while reading it, save the new list
 		if update:
 			self.save_bdays()
+	
+	###########################################################################
+	#
+	# time check loop functions
+	#
+	###########################################################################
+
+	# gives warnings when a meeting is in 30 minutes
+	async def __meeting_soon_loop(self):
+		return
+	
+	# gives warnings when a weekly meeting is in 30 minutes
+	async def __weekly_meeting_soon_loop(self):
+		return
+	
+	# gives alerts when a meeting is starting
+	async def __meeting_alert_loop(self):
+		return
+	
+	# gives alerts when a weekly meeting is starting
+	async def __weekly_meeting_alert_loop(self):
+		return
+	
+	# gives alerts at 8:00 am when it's someone's bday
+	async def __bday_alert_loop(self):
+		return
 
 ########################################################################################################################
 #
