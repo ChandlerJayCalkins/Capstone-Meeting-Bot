@@ -241,7 +241,7 @@ class ServerData:
 		
 		# saves all of the meetings to the server's meetings file
 		if save:
-			self.save_meetings()
+			self.__save_meetings()
 
 		return True
 	
@@ -301,7 +301,7 @@ class ServerData:
 		
 		# saves all of the weekly meetings to the server's weekly meetings file
 		if save:
-			self.save_weekly_meetings()
+			self.__save_weekly_meetings()
 		
 		return True
 	
@@ -368,7 +368,7 @@ class ServerData:
 		
 		# saves all of the birthdays to the server's bdays file
 		if save:
-			self.save_bdays()
+			self.__save_bdays()
 		
 		return True
 	
@@ -399,7 +399,7 @@ class ServerData:
 		
 		# saves all of the remaining meetings to the server's meetings file
 		if save:
-			self.save_meetings()
+			self.__save_meetings()
 
 		return True
 	
@@ -430,7 +430,7 @@ class ServerData:
 		
 		# saves all of the remaining meetings to the server's meetings file
 		if save:
-			self.save_weekly_meetings()
+			self.__save_weekly_meetings()
 		
 		return True
 	
@@ -444,7 +444,7 @@ class ServerData:
 			self.bdays.pop(index)
 			# saves all of the birthdays to the server's bdays file
 			if save:
-				self.save_bdays()
+				self.__save_bdays()
 			
 			return True
 		# if the bday is not in the list
@@ -463,7 +463,7 @@ class ServerData:
 
 		# saves the agenda order and index to the server folder
 		if save:
-			self.save_agenda()
+			self.__save_agenda()
 
 		return True
 	
@@ -479,7 +479,7 @@ class ServerData:
 
 		# saves the meeting minutes order and index to the server folder
 		if save:
-			self.save_minutes()
+			self.__save_minutes()
 
 		return True
 	
@@ -492,7 +492,7 @@ class ServerData:
 			self.agenda_index = self.agenda_order.find(name)
 			# saves the agenda order and index to the server folder
 			if save:
-				self.save_agenda()
+				self.__save_agenda()
 			
 			return True
 		else:
@@ -507,7 +507,7 @@ class ServerData:
 			self.minutes_index = self.minutes_order.find(name)
 			# saves the meeting minutes order and index to the server folder
 			if save:
-				self.save_minutes()
+				self.__save_minutes()
 			
 			return True
 		else:
@@ -521,7 +521,7 @@ class ServerData:
 
 		# saves the agenda order and index to the server folder
 		if save:
-			self.save_agenda()
+			self.__save_agenda()
 	
 	# sets the meeting minutes duty list to an empty list and the minutes index to 0
 	def clear_minutes_order(self, save: bool = True):
@@ -531,7 +531,7 @@ class ServerData:
 
 		# saves the meeting minutes order and index to the server folder
 		if save:
-			self.save_minutes()
+			self.__save_minutes()
 	
 	# increases the agenda order index by i (default 1), loops back to the start if it's at the end
 	def inc_agenda(self, i: int = 1, save: bool = True):
@@ -539,7 +539,7 @@ class ServerData:
 
 		# saves the agenda data
 		if save:
-			self.save_agenda()
+			self.__save_agenda()
 	
 	# increases the meeting minutes order index by i (default 1), loops back to the start if it's at the end
 	def inc_minutes(self, i: int = 1, save: bool = True):
@@ -547,7 +547,7 @@ class ServerData:
 
 		# saves the meeting minutes data
 		if save:
-			self.save_minutes()
+			self.__save_minutes()
 	
 	# sets the alert channel for a server to the one that is inputted
 	# returns false if it can't be set to that channel, true if it was successfully set to it
@@ -566,7 +566,7 @@ class ServerData:
 			# set this server's alert channel to this channel and return true
 			self.alert_channel = channel
 			# save the new alert channel
-			self.save_alert_channel()
+			self.__save_alert_channel()
 			return True
 		# if the bot doesn't have permission to send messages in this channel
 		else:
@@ -585,7 +585,7 @@ class ServerData:
 		if channel != self.alert_channel:
 			# set the alert channel to the new one and save it
 			self.alert_channel = channel
-			self.save_alert_channel()
+			self.__save_alert_channel()
 	
 	###########################################################################
 	#
@@ -594,7 +594,7 @@ class ServerData:
 	###########################################################################
 
 	# saves the meetings list to the server's meetings file
-	def save_meetings(self):
+	def __save_meetings(self):
 		file_lines = ''
 		# combine every item in the list into a newline separated string
 		for meeting in self.meetings:
@@ -605,7 +605,7 @@ class ServerData:
 			file.write(file_lines)
 	
 	# saves the weekly meetings list to the server's weekly meetings file
-	def save_weekly_meetings(self):
+	def __save_weekly_meetings(self):
 		file_lines = ''
 		# combine every item in the list into a newline separated string
 		for meeting in self.weekly_meetings:
@@ -616,7 +616,7 @@ class ServerData:
 			file.write(file_lines)
 	
 	# saves the agenda order list and index to the server's agenda order file
-	def save_agenda(self):
+	def __save_agenda(self):
 		file_lines = ''
 		# combine every item in the list into a newline separated string
 		for name in self.agenda_order:
@@ -628,7 +628,7 @@ class ServerData:
 			file.write(file_lines)
 	
 	# saves the meeting minutes order list and index to the server's minutes order file
-	def save_minutes(self):
+	def __save_minutes(self):
 		file_lines = ''
 		# combine every item in the list into a newline separated string
 		for name in self.minutes_order:
@@ -640,7 +640,7 @@ class ServerData:
 			file.write(file_lines)
 	
 	# saves the alert channel to the server's alert channel file
-	def save_alert_channel(self):
+	def __save_alert_channel(self):
 		with open(self.alert_path, 'w') as file:
 			# if this server has an alert channel, write its id to the file
 			if self.alert_channel is not None:
@@ -650,7 +650,7 @@ class ServerData:
 				file.write('')
 	
 	# saves the birthdays list to the server's bdays file
-	def save_bdays(self):
+	def __save_bdays(self):
 		file_lines = ''
 		# combine every item in the list into a newline separated string
 		for bday in self.bdays:
@@ -714,7 +714,7 @@ class ServerData:
 		
 		# if there were any changes to the list while reading it, save the new list
 		if update:
-			self.save_meetings()
+			self.__save_meetings()
 	
 	# reads data from the weekly meetings file, stores it in this object, and updates the file if needed
 	async def __read_weekly_meetings(self):
@@ -772,7 +772,7 @@ class ServerData:
 		
 		# if there were any changes to the list while reading it, save the new list
 		if update:
-			self.save_weekly_meetings()
+			self.__save_weekly_meetings()
 	
 	# reads data from the agenda order file, stores it in this object, and updates the file if needed
 	def __read_agenda(self):
@@ -786,7 +786,7 @@ class ServerData:
 		
 		# if the file was empty
 		if len(lines) <= 0:
-			self.save_agenda()
+			self.__save_agenda()
 		else:
 			# remove newline from index
 			index = lines[0].strip()
@@ -798,10 +798,10 @@ class ServerData:
 				if self.agenda_index >= len(self.agenda_order):
 					# set the index to 0 and update the data in the list's file
 					self.agenda_index = 0
-					self.save_agenda()
+					self.__save_agenda()
 			# if the index is not a positive integer, update the data in the list's file so the index in there will be 0
 			else:
-				self.save_agenda()
+				self.__save_agenda()
 	
 	# reads data from the meeting minutes order file, stores it in this object, and updates the file if needed
 	def __read_minutes(self):
@@ -815,7 +815,7 @@ class ServerData:
 		
 		# if the file was empty
 		if len(lines) <= 0:
-			self.save_agenda()
+			self.__save_agenda()
 		else:
 			# remove newline from index
 			index = lines[0].strip()
@@ -827,10 +827,10 @@ class ServerData:
 				if self.minutes_index >= len(self.minutes_order):
 					# set the index to 0 and update the data in the list's file
 					self.minutes_index = 0
-					self.save_minutes()
+					self.__save_minutes()
 			# if the index is not a positive integer, update the data in the list's file so the index in there will be 0
 			else:
-				self.save_minutes()
+				self.__save_minutes()
 	
 	# reads data from the alert_channel file, stores it in this object, and updates the file if needed
 	def __read_alert_channel(self):
@@ -898,7 +898,7 @@ class ServerData:
 		
 		# if there were any changes to the list while reading it, save the new list
 		if update:
-			self.save_bdays()
+			self.__save_bdays()
 	
 	###########################################################################
 	#
