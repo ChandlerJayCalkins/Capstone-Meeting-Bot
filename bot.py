@@ -2004,25 +2004,32 @@ def str_to_date_nums(date: str):
 # returns whether or not a string is a day of the week
 
 def is_monday(token: str) -> bool:
-	return token.lower() == 'm' or token.lower() == 'mon' or token.lower() == 'monday' or token.lower() == 'mondays'
+	token = token.lower()
+	return token == 'm' or token == 'mo' or token == 'mon' or token == 'monday' or token == 'mondays'
 
 def is_tuesday(token: str) -> bool:
-	return token.lower() == 'tu' or token.lower() == 'tue' or token.lower() == 'tues' or token.lower() == 'tuesday' or token.lower() == 'tuesdays'
+	token = token.lower()
+	return token == 'tu' or token == 'tue' or token == 'tues' or token == 'tuesday' or token == 'tuesdays'
 
 def is_wednesday(token: str) -> bool:
-	return token.lower() == 'w' or token.lower() == 'wed' or token.lower() == 'wednesday' or token.lower() == 'wednesdays'
+	token = token.lower()
+	return token == 'w' or token == 'we' or token == 'wed' or token == 'wednesday' or token == 'wednesdays'
 
 def is_thursday(token: str) -> bool:
-	return token.lower() == 'th' or token.lower() == 'thu' or token.lower() == 'thur' or token.lower() == 'thurs' or token.lower() == 'thursday' or token.lower() == 'thursdays'
+	token = token.lower()
+	return token == 'th' or token == 'thu' or token == 'thur' or token == 'thurs' or token == 'thursday' or token == 'thursdays'
 
 def is_friday(token: str) -> bool:
-	return token.lower() == 'f' or token.lower() == 'fri' or token.lower() == 'friday' or token.lower() == 'fridays'
+	token = token.lower()
+	return token == 'f' or token == 'fr' or token == 'fri' or token == 'friday' or token == 'fridays'
 
 def is_saturday(token: str) -> bool:
-	return token.lower() == 'sa' or token.lower() == 'sat' or token.lower() == 'saturday' or token.lower() == 'saturdays'
+	token = token.lower()
+	return token == 'sa' or token == 'sat' or token == 'saturday' or token == 'saturdays'
 
 def is_sunday(token: str) -> bool:
-	return token.lower() == 'su' or token.lower() == 'sun' or token.lower() == 'sunday' or token.lower() == 'sundays'
+	token = token.lower()
+	return token == 'su' or token == 'sun' or token == 'sunday' or token == 'sundays'
 
 # converts a string of a day sunday to saturday to a number 0 to 6
 def day_to_num(day: str):
