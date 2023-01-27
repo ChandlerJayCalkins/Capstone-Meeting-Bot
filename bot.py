@@ -57,10 +57,12 @@ if os.path.isfile("contact_info.txt"):
 
 # class for storing bday dates and names
 class BDay:
+	# constructor
 	def __init__(self, date: datetime.date, name: str):
 		self.date = date
 		self.name = name
 	
+	# string caster
 	def __str__(self):
 		# Linux version:
 		# date_str = self.date.strftime('%b %-d')
@@ -69,8 +71,35 @@ class BDay:
 		bday_str = f'{self.name}: {date_str}'
 		return bday_str
 	
+	###########################################################################
+	#
+	# operator overloads
+	#
+	###########################################################################
+	
+	# equal ==
 	def __eq__(self, other) -> bool:
 		return self.date == other.date and self.name == other.name
+	
+	# not equal !=
+	def __ne__(self, other) -> bool:
+		return self.date != other.date or self.name != other.name
+	
+	# less than <
+	def __lt__(self, other) -> bool:
+		return self.date < other.date
+	
+	# less than or equal to <=
+	def __le__(self, other) -> bool:
+		return self.date <= other.date
+	
+	# greater than >
+	def __gt__(self, other) -> bool:
+		return self.date > other.date
+	
+	# greater than or equal to >=
+	def __ge__(self, other) -> bool:
+		return self.date >= other.date
 
 
 # class for storing a server's data (like agenda order list and meeting times)
@@ -84,7 +113,7 @@ class ServerData:
 	# directory name of all server data
 	server_root = 'server_data'
 	# string format for datetimes in file saves
-	dtfstr = '%Y-%m-%d %H:%M:%S %z\n'
+	dtfstr = '%Y-%m-%d %H:%M:%S %z'
 	# max number of servers that the bot can be in (to save drive and ram space)
 	max_servers = 100
 	# max amounts of each type of data (to save drive and ram space)
@@ -120,10 +149,8 @@ class ServerData:
 		# initialize fields
 		self.server = server
 		self.meetings = []
-		self.on_deck_meetings = []
 		self.soon_meeting_index = 0
 		self.weekly_meetings = []
-		self.on_deck_weekly_meetings = []
 		self.soon_weekly_meeting_index = 0
 		self.agenda_order = []
 		self.agenda_index = 0
@@ -192,52 +219,14 @@ class ServerData:
 		if len(self.meetings) >= ServerData.max_meetings:
 			return False
 		
-		# if the meeting list is empty, just add the meeting to the list
-		if len(self.meetings) == 0:
-			self.meetings.append(time)
-		# if there's only 1 item in the list
-		elif len(self.meetings) == 1:
-			if time < self.meetings[0]:
-				self.meetings.insert(0, time)
-			elif time > self.meetings[0]:
-				self.meetings.append(time)
-			# if the time is a duplicate
-			else:
-				return False
-		# if the list has at least 2 meetings, do a binary insert
+		# insert the meeting time into a new meetings list
+		l = bin_insert(self.meetings, time, no_dupes=True)
+		# if the meeting time was a duplicate
+		if not l:
+			return False
+		# if the meeting time wasn't a duplicate
 		else:
-			# start by checking entire list
-			low = 0
-			high = len(self.meetings) - 1
-			# while there are more than 2 more list items to check
-			while high - low > 1:
-				# get mid point of remaining list to check
-				mid = (high - low) // 2 + low
-				# if the time is less than the mid point, remove the upper half of the remaining list to check
-				if time < self.meetings[mid]:
-					high = mid - 1
-				# if the time is greater than the mid point, remove the lower half of the remaining list to check
-				elif time > self.meetings[mid]:
-					low = mid + 1
-				# if the time is a duplicate
-				else:
-					return False
-			
-			# if the time is between the last 2 items
-			if time > self.meetings[low] and time < self.meetings[high]:
-				# insert the time between those 2 items
-				self.meetings.insert(high, time)
-			# if the time is less than the lower last item
-			elif time < self.meetings[low]:
-				# insert the time in front of that item
-				self.meetings.insert(low, time)
-			# if the time is greater than the higher last item
-			elif time > self.meetings[high]:
-				# insert the time after that item
-				self.meetings.insert(high + 1, time)
-			# if the time is equal to one of those times
-			else:
-				return False
+			self.meetings = l
 		
 		# saves all of the meetings to the server's meetings file
 		if save:
@@ -252,52 +241,14 @@ class ServerData:
 		if len(self.weekly_meetings) >= ServerData.max_weekly_meetings:
 			return False
 
-		# if the meeting list is empty, just add the meeting to the list
-		if len(self.meetings) == 0:
-			self.weekly_meetings.append(time)
-		# if there's only 1 item in the list
-		elif len(self.weekly_meetings) == 1:
-			if time < self.weekly_meetings[0]:
-				self.weekly_meetings.insert(0, time)
-			elif time > self.weekly_meetings[0]:
-				self.weekly_meetings.append(time)
-			# if the time is a duplicate
-			else:
-				return False
-		# if the list has at least 2 meetings, do a binary insert
+		# insert the meeting time into a new meetings list
+		l = bin_insert(self.weekly_meetings, time, no_dupes=True)
+		# if the meeting time was a duplicate
+		if not l:
+			return False
+		# if the meeting time wasn't a duplicate
 		else:
-			# start by checking entire list
-			low = 0
-			high = len(self.weekly_meetings) - 1
-			# while there are more than 2 more list items to check
-			while high - low > 1:
-				# get mid point of remaining list to check
-				mid = (high - low) // 2 + low
-				# if the time is less than the mid point, remove the upper half of the remaining list to check
-				if time.weekday() < self.weekly_meetings[mid].weekday():
-					high = mid - 1
-				# if the time is greater than the mid point, remove the lower half of the remaining list to check
-				elif time.weekday() > self.weekly_meetings[mid].weekday():
-					low = mid + 1
-				# if the time is a duplicate
-				else:
-					return False
-			
-			# if the time is between the last 2 items
-			if time.weekday() > self.weekly_meetings[low].weekday() and time.weekday() < self.weekly_meetings[high].weekday():
-				# insert the time between those 2 items
-				self.weekly_meetings.insert(high, time)
-			# if the time is less than the lower last item
-			elif time.weekday() < self.weekly_meetings[low].weekday():
-				# insert the time in front of that item
-				self.weekly_meetings.insert(low, time)
-			# if the time is greater than the higher last item
-			elif time.weekday() > self.weekly_meetings[high].weekday():
-				# insert the time after that item
-				self.weekly_meetings.insert(high + 1, time)
-			# if the time is equal to one of those times
-			else:
-				return False
+			self.weekly_meetings = l
 		
 		# saves all of the weekly meetings to the server's weekly meetings file
 		if save:
@@ -312,59 +263,14 @@ class ServerData:
 		if len(self.bdays) >= ServerData.max_bdays:
 			return False
 
-		# if the bday is empty, just add the bday to the list
-		if len(self.bdays) == 0:
-			self.bdays.append(bday)
-		# if there's only 1 item in the list
-		elif len(self.bdays) == 1:
-			if bday.date < self.bdays[0].date:
-				self.bdays.insert(0, bday)
-			elif bday.date > self.bdays[0].date:
-				self.bdays.append(bday)
-			# if the bday is on the same day but has a different name
-			elif bday.name != self.bdays[0].name:
-				self.bdays.append(bday)
-			# if the bday is on the same day and has the same name as the other bday
-			else:
-				return False
-		# if the list has at least 2 bdays, do a binary insert
+		# insert the meeting time into a new meetings list
+		l = bin_insert(self.bdays, bday, no_dupes=True)
+		# if the meeting time was a duplicate
+		if not l:
+			return False
+		# if the meeting time wasn't a duplicate
 		else:
-			# start by checking entire list
-			low = 0
-			high = len(self.bdays) - 1
-			# while there are more than 2 more list items to check
-			while high - low > 1:
-				# get mid point of remaining list to check
-				mid = (high - low) // 2 + low
-				# if the date is less than the mid point, remove the upper half of the remaining list to check
-				if bday.date < self.bdays[mid].date:
-					high = mid - 1
-				# if the date is greater than the mid point, remove the lower half of the remaining list to check
-				elif bday.date > self.bdays[mid].date:
-					low = mid + 1
-				# if the bday is a duplicate
-				else:
-					return False
-			
-			# if the date is between the last 2 items
-			if bday.date > self.bdays[low].date and bday.date < self.bdays[high].date:
-				# insert the bday between those 2 items
-				self.bdays.insert(high, bday)
-			# if the date is less than the lower last item
-			elif bday.date < self.bdays[low].date:
-				# insert the bday in front of that item
-				self.bdays.insert(low, bday)
-			# if the date is greater than the higher last item
-			elif bday.date > self.bdays[high].date:
-				# insert the bday after that item
-				self.bdays.insert(high + 1, bday)
-			# if the bday is on the same day as another one but has a different name
-			elif bday.name != self.bdays[low].name or bday.name != self.bdays[high].name:
-				# insert the bday at the higher bday
-				self.bdays.insert(high, bday)
-			# if the bday is on the same day and has the same name as another bday
-			else:
-				return False
+			self.bdays = l
 		
 		# saves all of the birthdays to the server's bdays file
 		if save:
@@ -598,7 +504,7 @@ class ServerData:
 		file_lines = ''
 		# combine every item in the list into a newline separated string
 		for meeting in self.meetings:
-			file_lines += meeting.strftime(ServerData.dtfstr)
+			file_lines += meeting.strftime(ServerData.dtfstr + '\n')
 		
 		# write the dates to the meetings file
 		with open(self.meetings_path, 'w') as file:
@@ -609,7 +515,7 @@ class ServerData:
 		file_lines = ''
 		# combine every item in the list into a newline separated string
 		for meeting in self.weekly_meetings:
-			file_lines += meeting.strftime(ServerData.dtfstr)
+			file_lines += meeting.strftime(ServerData.dtfstr + '\n')
 		
 		# write the dates to the meetings file
 		with open(self.weekly_path, 'w') as file:
@@ -874,10 +780,10 @@ class ServerData:
 			# get the name and datetime of the bday
 			try:
 				# assume the name of the bday goes up to the 20th last character, which is where the datetime should begin (including the newline char)
-				index = -20
+				index = -26
 				name = line[:index].strip()
 				# get the datetime of the bday
-				date = datetime.datetime.strptime(line[index:], ServerData.dtfstr)
+				date = datetime.datetime.strptime(line[index:].strip(), ServerData.dtfstr)
 			# set the update flag and do the next line if this one is wrong
 			except:
 				update = True
@@ -915,11 +821,11 @@ class ServerData:
 		return
 	
 	# gives alerts when a meeting is starting
-	async def __meeting_alert_loop(self):
+	async def __meeting_now_loop(self):
 		return
 	
 	# gives alerts when a weekly meeting is starting
-	async def __weekly_meeting_alert_loop(self):
+	async def __weekly_meeting_now_loop(self):
 		return
 	
 	# gives alerts at 8:00 am when it's someone's bday
@@ -1775,9 +1681,53 @@ async def bdays_command(message):
 
 ########################################################################################################################
 #
-# command utility functions
+# utility functions
 #
 ########################################################################################################################
+
+# iserts obj into l with a binary insert
+# low = lowest index to insert into, high = highest index to insert into, no_dupes = returning false if obj is already in l within the low and high indexes
+def bin_insert(l: list, obj, low = 0, high=None, no_dupes=False):
+	# if no high argument was given, set it to the last index in l
+	if high is None:
+		high = len(l) - 1
+	
+	# if there are no duplicates allowed
+	if no_dupes:
+		# while the index to insert into hasn't been found yet
+		while low <= high:
+			# get the midpoint between the high and low indexes
+			mid = (low + high) // 2
+			# if the object is the same as the object at the midpoint in l
+			if obj == l[mid]:
+				return False
+			
+			# if the object is less than the object at the midpoint in l
+			if obj < l[mid]:
+				# cut the check to the lower half of the remaining list
+				high = mid - 1
+			# if the object is greater than or equal to the object at the midpoint in l
+			else:
+				# cut the check to the upper half of the remaining list
+				low = mid + 1
+		
+		# return the new list with obj inserted in its sorted position
+		return l[:low] + [obj] + l[low:]
+	# if duplicates are allowed
+	else:
+		# while the index to insert into hasn't been found yet
+		while low <= high:
+			# get the midpoint between the high and low indexes
+			mid = (low + high) // 2
+			# if the object is less than the object at the midpoint in l
+			if obj < l[mid]:
+				high = mid - 1
+			# if the object is greater than or equal to the object at the midpoint in l
+			else:
+				low = mid + 1
+			
+		# return the new list with obj inserted in its sorted position
+		return l[:low] + [obj] + l[low:]
 
 # makes the bot react to a message with a checkmark emoji if it's able to
 async def react_with_check(message):
