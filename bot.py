@@ -55,6 +55,156 @@ if os.path.isfile("contact_info.txt"):
 #
 ########################################################################################################################
 
+# class for storing data about weekly meetings for display purposes
+class WeeklyMeeting:
+	# constructor (day must be int between 0 and 6 (monday to sunday), hour must be int between 0 and 23, minute must be int between 0 and 59)
+	def __init__(self, day: int, hour: int, minute: int):
+		# if the day is valid
+		if day >=0 and day <= 6:
+			self.day = day
+		else:
+			raise ValueError(f'Day of the week must be int between 0 and 6, {day} is not')
+		
+		# if the hour is valid
+		if hour >= 0 and hour <= 23:
+			self.hour = hour
+		else:
+			raise ValueError(f'Hour must be int between 0 and 23, {hour} is not')
+		
+		# if the minute is valid
+		if minute >= 0 and minute <= 59:
+			self.minute = minute
+		else:
+			raise ValueError(f'Minute must be int between 0 and 59, {minute} is not')
+		
+		# string for displaying the day of the week
+		if day == 0:
+			self.day_str = 'Monday'
+		elif day == 1:
+			self.day_str = 'Tuesday'
+		elif day == 2:
+			self.day_str = 'Wednesday'
+		elif day == 3:
+			self.day_str = 'Thursday'
+		elif day == 4:
+			self.day_str = 'Friday'
+		elif day == 5:
+			self.day_str = 'Saturday'
+		elif day == 6:
+			self.day_str = 'Sunday'
+		else:
+			raise ValueError(f'Day of the week must be int between 0 and 6, {day} is not')
+		
+		# hour in 12 hour time instead of 24 and am / pm
+		if hour > 12:
+			self.hour_12 = hour - 12
+			self.ampm = 'pm'
+		elif hour == 0:
+			self.hour_12 = 12
+			self.ampm = 'am'
+		else:
+			self.hour_12 = hour
+			if hour == 12:
+				self.ampm = 'pm'
+			else:
+				self.ampm = 'am'
+		
+		# string for displaying minute with a 0 padded onto numbers with only one digit
+		if minute < 10:
+			self.min_str = '0' + str(minute)
+		else:
+			self.min_str = str(minute)
+	
+	# string caster
+	def __str__(self):
+		return f'{self.day_str}s at {self.hour}:{self.min_str} / {self.hour_12}:{self.min_str} {self.ampm} {tzstr}'
+	
+	###########################################################################
+	#
+	# operator overloads
+	#
+	###########################################################################
+
+	# equal ==
+	def __eq__(self, other) -> bool:
+		if type(other) is WeeklyMeeting:
+			return self.day == other.day and self.hour == other.hour and self.minute == other.minute
+		elif type(other) is datetime.datetime:
+			return self.day == other.weekday() and self.hour == other.hour and self.minute == other.minute
+		else:
+			raise TypeError(f'WeeklyMeeting class does not support operations with {type(other)}, only other WeeklyMeetings and datetimes')
+	
+	# not equal !=
+	def __ne__(self, other) -> bool:
+		if type(other) is WeeklyMeeting:
+			return self.day != other.day or self.hour != other.hour or self.minute != other.minute
+		elif type(other) is datetime.datetime:
+			return self.day != other.weekday() or self.hour != other.hour or self.minute != other.minute
+		else:
+			raise TypeError(f'WeeklyMeeting class does not support operations with {type(other)}, only other WeeklyMeetings and datetimes')
+	
+	# less than <
+	def __lt__(self, other) -> bool:
+		if type(other) is WeeklyMeeting:
+			return self.day < other.day or (self.day == other.day and (self.hour < other.hour or (self.hour == other.hour and self.minute < other.minute)))
+		elif type(other) is datetime.datetime:
+			return self.day < other.weekday() or (self.day == other.weekday() and (self.hour < other.hour or (self.hour == other.hour and self.minute < other.minute)))
+		else:
+			raise TypeError(f'WeeklyMeeting class does not support operations with {type(other)}, only other WeeklyMeetings and datetimes')
+	
+	# less than or equal to <=
+	def __le__(self, other) -> bool:
+		if type(other) is WeeklyMeeting:
+			return self.day < other.day or (self.day == other.day and (self.hour < other.hour or (self.hour == other.hour and self.minute <= other.minute)))
+		elif type(other) is datetime.datetime:
+			return self.day < other.weekday() or (self.day == other.weekday() and (self.hour < other.hour or (self.hour == other.hour and self.minute <= other.minute)))
+		else:
+			raise TypeError(f'WeeklyMeeting class does not support operations with {type(other)}, only other WeeklyMeetings and datetimes')
+	
+	# greater than >
+	def __gt__(self, other) -> bool:
+		if type(other) is WeeklyMeeting:
+			return self.day > other.day or (self.day == other.day and (self.hour > other.hour or (self.hour == other.hour and self.minute > other.minute)))
+		elif type(other) is datetime.datetime:
+			return self.day > other.weekday() or (self.day == other.weekday() and (self.hour > other.hour or (self.hour == other.hour and self.minute > other.minute)))
+		else:
+			raise TypeError(f'WeeklyMeeting class does not support operations with {type(other)}, only other WeeklyMeetings and datetimes')
+	
+	# greater than or equal to >=
+	def __ge__(self, other) -> bool:
+		if type(other) is WeeklyMeeting:
+			return self.day > other.day or (self.day == other.day and (self.hour > other.hour or (self.hour == other.hour and self.minute >= other.minute)))
+		elif type(other) is datetime.datetime:
+			return self.day > other.weekday() or (self.day == other.weekday() and (self.hour > other.hour or (self.hour == other.hour and self.minute >= other.minute)))
+		else:
+			raise TypeError(f'WeeklyMeeting class does not support operations with {type(other)}, only other WeeklyMeetings and datetimes')
+	
+	###########################################################################
+	#
+	# utility functions
+	#
+	###########################################################################
+
+	# returns a datetime object of the next occurrence of this meeting
+	def get_next_datetime(self) -> datetime.datetime:
+		# set meeting time to today by default at the hour and minute of the meetings
+		now = datetime.datetime.now(timezone)
+		time = datetime.datetime(now.year, now.month, now.day, hour=self.hour, minute=self.minute, tzinfo=timezone)
+		# if the meeting weekday is later in the week
+		if self.day > now.weekday():
+			# set the meeting time to the right day later this week
+			delta = datetime.timedelta(days=(self.day - now.weekday()))
+			time += delta
+		# if the meeting time is earlier in the week than now
+		elif self <= now:
+			# set the meeting time to the right day next week
+			delta = datetime.timedelta(days=(7 - now.weekday() + self.day))
+			time += delta
+		
+		# else case is that the meeting was already set to the correct day initially
+		
+		return time
+
 # class for storing bday dates and names
 class BDay:
 	# constructor
@@ -100,7 +250,6 @@ class BDay:
 	# greater than or equal to >=
 	def __ge__(self, other) -> bool:
 		return self.date >= other.date
-
 
 # class for storing a server's data (like agenda order list and meeting times)
 class ServerData:
@@ -150,7 +299,8 @@ class ServerData:
 		self.server = server
 		self.meetings = []
 		self.soon_meeting_index = 0
-		self.weekly_meetings = []
+		self.weekly_meetings = [] # for datetime objects
+		self.display_weekly_meetings = [] # for WeeklyMeeting objects
 		self.soon_weekly_meeting_index = 0
 		self.agenda_order = []
 		self.agenda_index = 0
@@ -213,10 +363,15 @@ class ServerData:
 	###########################################################################
 
 	# adds a meeting time to the meeting list in sorted order with a binary search
-	# returns true if the meeting was added to the list, false if that time is already in the list
+	# returns false if the time is in the past or already in the list, true if it was successfully added
 	async def add_meeting(self, time: datetime.datetime, save: bool = True) -> bool:
 		# if the max list length has already been reached
 		if len(self.meetings) >= ServerData.max_meetings:
+			return False
+		
+		now = datetime.datetime.now(timezone)
+		# if the meeting time is in the past
+		if time < now:
 			return False
 		
 		# insert the meeting time into a new meetings list
@@ -235,20 +390,57 @@ class ServerData:
 		return True
 	
 	# adds a weekly meeting time to a weekly meeting list in sorted order with a binary search
-	# returns true if the meeting was added to the list, false if that time is already in the list
-	async def add_weekly_meeting(self, time: datetime.datetime, save: bool = True) -> bool:
+	# returns false if the time is in the past or already in the list, true if it was successfully added
+	async def add_weekly_meeting(self, time, save: bool = True) -> bool:
 		# if the max list length has already been reached
 		if len(self.weekly_meetings) >= ServerData.max_weekly_meetings:
 			return False
-
-		# insert the meeting time into a new meetings list
-		l = bin_insert(self.weekly_meetings, time, no_dupes=True)
-		# if the meeting time was a duplicate
-		if not l:
-			return False
-		# if the meeting time wasn't a duplicate
+		
+		# if the time parameter is a WeeklyMeeting, add it to the display list first and then create a datetime object to add
+		if type(time) is WeeklyMeeting:
+			# insert the meeting time into a new meetings list
+			l = bin_insert(self.display_weekly_meetings, time, no_dupes=True)
+			# if the meeting time was a duplicate
+			if not l:
+				return False
+			# if the meeting time wasn't a duplicate
+			else:
+				self.display_weekly_meetings = l
+			
+			# get the datetime of the next occurrence of this meeting
+			next_time = time.get_next_datetime()
+			# insert the meeting time into a new meetings list
+			l = bin_insert(self.weekly_meetings, next_time, no_dupes=True)
+			# if the meeting time was a duplicate
+			if not l:
+				return False
+			# if the meeting time wasn't a duplicate
+			else:
+				self.weekly_meetings = l
+		# if the time parameter is a datetime, add it to the normal list first and then create a WeeklyMeeting object to add
+		elif type(time) is datetime.datetime:
+			# insert the meeting time into a new meetings list
+			l = bin_insert(self.weekly_meetings, time, no_dupes=True)
+			# if the meeting time was a duplicate
+			if not l:
+				return False
+			# if the meeting time wasn't a duplicate
+			else:
+				self.weekly_meetings = l
+			
+			# get a WeeklyMeeting object of this meeting time
+			weekly_time = WeeklyMeeting(time.weekday(), time.hour, time.minute)
+			# insert the meeting time into a new meetings list
+			l = bin_insert(self.display_weekly_meetings, weekly_time, no_dupes=True)
+			# if the meeting time was a duplicate
+			if not l:
+				return False
+			# if the meeting time wasn't a duplicate
+			else:
+				self.display_weekly_meetings = l
+		# if the time parameter isn't the right type at all
 		else:
-			self.weekly_meetings = l
+			raise TypeError('You can only add WeeklyMeeting and datetime objects with this function')
 		
 		# saves all of the weekly meetings to the server's weekly meetings file
 		if save:
@@ -309,7 +501,7 @@ class ServerData:
 
 		return True
 	
-	# removes weekly meetings from the server's list of weekly meetings given a list of arguments of the meetings' numbers
+	# removes weekly meetings from the server's lists of weekly meetings given a list of arguments of the meetings' numbers
 	# returns true if all of the meetings were successfully removed, returns false if any of the meeting numbers wasn't valid
 	def remove_weekly_meetings(self, meeting_numbers: list, save: bool = True) -> bool:
 		meeting_indexes = []
@@ -320,7 +512,7 @@ class ServerData:
 				# turn the argument into a number
 				index = int(arg)
 				# if the number is between 1 and the last weekly meeting number
-				if index >= 1 and index  <= len(self.weekly_meetings):
+				if index >= 1 and index  <= len(self.display_weekly_meetings):
 					# add that number to a list of indexes to remove
 					meeting_indexes.append(index)
 					continue
@@ -330,9 +522,18 @@ class ServerData:
 		
 		# sort the list of indexes in reverse order because the right indexes will change while they're being removed if they're iterated through ascending order
 		meeting_indexes.sort(reverse=True)
-		# remove each meeting from the list in reverse order
+		# remove each meeting from both lists in reverse order
 		for i in meeting_indexes:
-			self.weekly_meetings.pop(i - 1)
+			try:
+				# find the index of the corresponding datetime object to this WeeklyMeeting object in the other list
+				index = self.weekly_meetings.index(self.display_weekly_meetings[i - 1])
+				# pop the datetime object from its list
+				self.weekly_meetings.pop(index)
+			except:
+				# just ignore it if it can't find the corresponding object since it's already not there lol
+				pass
+			# pop the WeeklyMeeting object from its list
+			self.display_weekly_meetings.pop(i - 1)
 		
 		# saves all of the remaining meetings to the server's meetings file
 		if save:
@@ -511,6 +712,8 @@ class ServerData:
 			file.write(file_lines)
 	
 	# saves the weekly meetings list to the server's weekly meetings file
+	# note: only saves the datetime objects so the bot can know how many meetings it missed so it can set the agenda
+	# and minutes indexes properly
 	def __save_weekly_meetings(self):
 		file_lines = ''
 		# combine every item in the list into a newline separated string
@@ -604,7 +807,7 @@ class ServerData:
 		for line in lines:
 			# get the date and time of the meeting from the string
 			try:
-				meeting = datetime.datetime.strptime(line, ServerData.dtfstr)
+				meeting = datetime.datetime.strptime(line.strip(), ServerData.dtfstr)
 			# just do the next line if this one is wrong
 			except:
 				continue
@@ -637,7 +840,7 @@ class ServerData:
 		for line in lines:
 			# get the date and time of the meeting from the string
 			try:
-				meeting = datetime.datetime.strptime(line, ServerData.dtfstr)
+				meeting = datetime.datetime.strptime(line.strip(), ServerData.dtfstr)
 			# just do the next line if this one is wrong
 			except:
 				print('here')
@@ -1281,13 +1484,10 @@ async def add_command(message, command):
 				if valid_date(day, month, year=year):
 					meeting = datetime.datetime(year, month, day, hour=hour, minute=minute, tzinfo=timezone)
 					now = datetime.datetime.now(timezone)
-					if meeting < now:
-						await react_with_x(message)
-						return
 			
 			# add meeting to list
 
-			# if the meeting time is successfully added to the list in order and is not a duplicate
+			# if the meeting time is successfully added to the list
 			if await server_data[message.guild].add_meeting(meeting):
 				await react_with_check(message)
 			else:
@@ -1317,24 +1517,8 @@ async def add_command(message, command):
 				await react_with_x(message)
 				return
 			
-			# convert weekday to next datetime on that weekday
-
-			# set meeting time to today at the inputted hour and minute by default
-			now = datetime.datetime.now(timezone)
-			meeting = datetime.datetime(now.year, now.month, now.day, hour=hour, minute=minute, tzinfo=timezone)
-			# if the meeting weekday is later in the week
-			if day > now.weekday():
-				# set the meeting time to the right day later this week
-				delta = datetime.timedelta(days=(day - now.weekday()))
-				meeting += delta
-			# if the meeting weekday is earlier in the week or on the same day but at an earlier time in the day
-			elif day < now.weekday() or (day == now.weekday() and (hour < now.hour or (hour == now.hour and minute <= now.minute))):
-				# set the meeting time to the right day next week
-				meeting = datetime.datetime(now.year, now.month, now.day, hour=hour, minute=minute, tzinfo=timezone)
-				delta = datetime.timedelta(days=(7 - now.weekday() + day))
-				meeting += delta
-			
-			# add day and time to list
+			# construct object
+			meeting = WeeklyMeeting(day, hour, minute)
 
 			# if the meeting time is successfully added to the list in order and is not a duplicate
 			if await server_data[message.guild].add_weekly_meeting(meeting):
@@ -1490,17 +1674,13 @@ async def meetings_command(message):
 		reply += '```Weekly Meetings```\n'
 
 		# if there are no weekly meetings
-		if len(server_data[message.guild].weekly_meetings) < 1:
+		if len(server_data[message.guild].display_weekly_meetings) < 1:
 			reply += '**No weekly meetings.**\n'
 		# if there is at least 1 weekly meeting
 		else:
 			# display all of the weekly meetings in a numbered list
-			for i in range(len(server_data[message.guild].weekly_meetings)):
-				# Linux version:
-				# meeting_str = server_data[message.guild].weekly_meetings[i].strftime(f'%As at %-H:%M / %-I:%M %p {tzstr}')
-				# Windows version:
-				meeting_str = server_data[message.guild].weekly_meetings[i].strftime(f'%As at %#H:%M / %#I:%M %p {tzstr}')
-				reply += f'**{i+1}. {meeting_str}**\n\n'
+			for i in range(len(server_data[message.guild].display_weekly_meetings)):
+				reply += f'**{i+1}. {server_data[message.guild].display_weekly_meetings[i]}**\n\n'
 		
 		await safe_reply(message, reply)
 	# if the bot doesn't have permission to send message in the channel, react to the message with an x
