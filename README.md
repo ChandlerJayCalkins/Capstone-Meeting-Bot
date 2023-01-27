@@ -6,9 +6,9 @@ Works with python 3.11.
 
 # Required 3rd Party Libraries
 
-## Windows
+## discord.py
 
-### discord.py
+### Windows
 
 ```py -3 -m pip install -U discord.py```
 
@@ -16,13 +16,7 @@ or, for voice support as well if you want (not required for this bot),
 
 ```py -3 -m pip install -u discord.py[voice]```
 
-### zoneinfo
-
-```pip install tzdata```
-
-## Linux
-
-### discord.py
+### Linux
 
 ```python3 -m pip install -U discord.py```
 
@@ -30,7 +24,7 @@ or, for voice support as well if you want (not required for this bot),
 
 ```python3 -m pip install -U discord.py[voice]```
 
-### zoneinfo
+## zoneinfo
 
 ```pip install tzdata```
 
