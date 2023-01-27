@@ -556,11 +556,17 @@ class ServerData:
 		if channel.guild != self.server:
 			raise ValueError('Server passed as argument not the same as the object\'s server')
 		
+		# if the channel is the same as the current alert channel
+		if channel == self.alert_channel:
+			return True
+		
 		channel_perms = channel.permissions_for(channel.guild.me)
 		# if the bot has permission to send messages in this channel
 		if channel_perms.send_messages:
 			# set this server's alert channel to this channel and return true
 			self.alert_channel = channel
+			# save the new alert channel
+			self.save_alert_channel()
 			return True
 		# if the bot doesn't have permission to send messages in this channel
 		else:
@@ -573,8 +579,13 @@ class ServerData:
 		if server != self.server:
 			raise ValueError('Server passed as argument not the same as the object\'s server')
 		
-		# set the alert channel to the first text channel that the bot
-		self.alert_channel = ServerData.find_first_message_channel(server)
+		# get the first channel in this server that the bot has permission to send messages in
+		channel = ServerData.find_first_message_channel(server)
+		# if the new alert channel is different than the old one
+		if channel != self.alert_channel:
+			# set the alert channel to the new one and save it
+			self.alert_channel = channel
+			self.save_alert_channel()
 	
 	###########################################################################
 	#
@@ -628,6 +639,16 @@ class ServerData:
 			file.write(f'{self.minutes_index}\n')
 			file.write(file_lines)
 	
+	# saves the alert channel to the server's alert channel file
+	def save_alert_channel(self):
+		with open(self.alert_path, 'w') as file:
+			# if this server has an alert channel, write its id to the file
+			if self.alert_channel is not None:
+				file.write(f'{self.alert_channel.id}\n')
+			# if this server doesn't have an alert channel, write an empty string to the file
+			else:
+				file.write('')
+	
 	# saves the birthdays list to the server's bdays file
 	def save_bdays(self):
 		file_lines = ''
@@ -657,6 +678,8 @@ class ServerData:
 		await self.__read_meetings()
 		# weekly meeting data
 		await self.__read_weekly_meetings()
+		# alert channel data
+		self.__read_alert_channel()
 		# read saved bday data
 		await self.__read_bdays()
 
@@ -808,6 +831,32 @@ class ServerData:
 			# if the index is not a positive integer, update the data in the list's file so the index in there will be 0
 			else:
 				self.save_minutes()
+	
+	# reads data from the alert_channel file, stores it in this object, and updates the file if needed
+	def __read_alert_channel(self):
+		# read the alert channel
+		with open(self.alert_path, 'r') as file:
+			channel_id = file.read().strip()
+			# try converting the data read from the file into a discord channel object
+			try:
+				self.alert_channel = client.get_channel(int(channel_id))
+			# if the file didn't have a valid discord channel id in it
+			except:
+				# reset the alert channel
+				self.reset_alert_channel(self.server)
+				return
+		
+		# if the text channel exists in this server
+		if self.alert_channel in self.server.text_channels:
+			channel_perms = self.alert_channel.permissions_for(self.server.me)
+			# if the bot doesn't have permission to send messages in this channel
+			if not channel_perms.send_messages:
+				# reset the alert channel
+				self.reset_alert_channel(self.server)
+		# if the text channel doesn't exist in this server
+		else:
+			# reset the alert channel
+			self.reset_alert_channel(self.server)
 	
 	# reads data from th birthdays file, stores it in this object, and updates the file if needed
 	async def __read_bdays(self):
