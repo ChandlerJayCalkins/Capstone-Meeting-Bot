@@ -43,6 +43,5 @@ This is optional, the bot will still run without this file or if it's empty.
 # Required Server Permissions for the Bot
 - [x] Send Messages
 - [x] Send Messages in Threads
-- [x] Read Message History
 - [x] Mention Everyone
 - [x] Add Reactions
