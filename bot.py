@@ -1,10 +1,13 @@
+# used for interfacing with the discord api
 import discord
+# used for file io
 import sys
 import os
+from pathlib import Path
 import shutil
+# used for storing and using date and time information
 import datetime
 from zoneinfo import ZoneInfo
-from pathlib import Path
 
 ########################################################################################################################
 #
@@ -104,11 +107,24 @@ class ServerData:
 	#
 	###########################################################################
 
+	# creates a new ServerData object for a server
+	# USE THIS TO CREATE SERVERDATA OBJECTS! DO NOT USE THE ACTUAL CONSTRUCTOR!
+	async def create_ServerData(server):
+		data = ServerData(server)
+		await data.__read_all()
+		return data
+	
+	# DO NOT USE THIS TO CONSTRUCT A SERVERDATA OBJECT! USE THE FUNCTION ABOVE INSTEAD!
+	# THIS CONSTRUCTOR DOES NOT READ THE DATA FILES FOR ITSELF BECAUSE THE FUNCTIONS THAT DO THAT NEED TO BE ASYNC!
 	def __init__(self, server):
 		# initialize fields
 		self.server = server
 		self.meetings = []
+		self.on_deck_meetings = []
+		self.soon_meeting_index = 0
 		self.weekly_meetings = []
+		self.on_deck_weekly_meetings = []
+		self.soon_weekly_meeting_index = 0
 		self.agenda_order = []
 		self.agenda_index = 0
 		self.minutes_order = []
@@ -149,20 +165,6 @@ class ServerData:
 		for file in data_files:
 			if not os.path.isfile(file):
 				Path(file).touch()
-		
-		# retrive data from files
-		# do agenda and minutes first since reading the meetings data can change the agenda and minutes data
-
-		# read saved agenda data
-		self.__read_agenda()
-		# read saved minutes data
-		self.__read_minutes()
-		# read saved meeting data
-		self.__read_meetings()
-		# weekly meeting data
-		self.__read_weekly_meetings()
-		# read saved bday data
-		self.__read_bdays()
 	
 	###########################################################################
 	#
@@ -185,7 +187,7 @@ class ServerData:
 
 	# adds a meeting time to the meeting list in sorted order with a binary search
 	# returns true if the meeting was added to the list, false if that time is already in the list
-	def add_meeting(self, time: datetime.datetime, save: bool = True) -> bool:
+	async def add_meeting(self, time: datetime.datetime, save: bool = True) -> bool:
 		# if the max list length has already been reached
 		if len(self.meetings) >= ServerData.max_meetings:
 			return False
@@ -245,7 +247,7 @@ class ServerData:
 	
 	# adds a weekly meeting time to a weekly meeting list in sorted order with a binary search
 	# returns true if the meeting was added to the list, false if that time is already in the list
-	def add_weekly_meeting(self, time: datetime.datetime, save: bool = True) -> bool:
+	async def add_weekly_meeting(self, time: datetime.datetime, save: bool = True) -> bool:
 		# if the max list length has already been reached
 		if len(self.weekly_meetings) >= ServerData.max_weekly_meetings:
 			return False
@@ -305,7 +307,7 @@ class ServerData:
 	
 	# adds a birthday to the bday list in sorted order with a binary search
 	# returns true if the bday was added to the list, false if a bday on the same day for the same name is already in the list
-	def add_bday(self, bday: BDay, save: bool = True) -> bool:
+	async def add_bday(self, bday: BDay, save: bool = True) -> bool:
 		# if the max list length has already been reached
 		if len(self.bdays) >= ServerData.max_bdays:
 			return False
@@ -547,6 +549,33 @@ class ServerData:
 		if save:
 			self.save_minutes()
 	
+	# sets the alert channel for a server to the one that is inputted
+	# returns false if it can't be set to that channel, true if it was successfully set to it
+	def set_alert_channel(self, channel):
+		# if the channel is not in the same server as the this object's server
+		if channel.guild != self.server:
+			raise ValueError('Server passed as argument not the same as the object\'s server')
+		
+		channel_perms = channel.permissions_for(channel.guild.me)
+		# if the bot has permission to send messages in this channel
+		if channel_perms.send_messages:
+			# set this server's alert channel to this channel and return true
+			self.alert_channel = channel
+			return True
+		# if the bot doesn't have permission to send messages in this channel
+		else:
+			return False
+	
+	# sets the alert channel for this server to the first text channel that the bot can send messages in
+	# sets it to none if the bot doesn't have permission to send messages in any of the channels
+	def reset_alert_channel(self, server):
+		# if the server is not the same as this object's server
+		if server != self.server:
+			raise ValueError('Server passed as argument not the same as the object\'s server')
+		
+		# set the alert channel to the first text channel that the bot
+		self.alert_channel = ServerData.find_first_message_channel(server)
+	
 	###########################################################################
 	#
 	# data backup / saving functions
@@ -617,8 +646,22 @@ class ServerData:
 	#
 	###########################################################################
 
+	# reads all of the data files, stores them in this object, and updates the files if needed
+	async def __read_all(self):
+		# do agenda and minutes first since reading the meetings data can change the agenda and minutes data
+		# read saved agenda data
+		self.__read_agenda()
+		# read saved minutes data
+		self.__read_minutes()
+		# read saved meeting data
+		await self.__read_meetings()
+		# weekly meeting data
+		await self.__read_weekly_meetings()
+		# read saved bday data
+		await self.__read_bdays()
+
 	# reads data from the meetings file, stores it in this object, and updates the file if needed
-	def __read_meetings(self):
+	async def __read_meetings(self):
 		# flag if the list was updated while reading it
 		update = False
 		
@@ -639,7 +682,7 @@ class ServerData:
 
 			# if the meeting time is in the future, add it to the server's meetings list
 			if meeting > now:
-				self.add_meeting(meeting, save=False)
+				await self.add_meeting(meeting, save=False)
 			# if the meeting already happened, don't add it to the list and increment the minutes index
 			else:
 				# set the update flag to true so the bot will update the data in the file
@@ -651,7 +694,7 @@ class ServerData:
 			self.save_meetings()
 	
 	# reads data from the weekly meetings file, stores it in this object, and updates the file if needed
-	def __read_weekly_meetings(self):
+	async def __read_weekly_meetings(self):
 		# flag if the list was updated while reading it
 		update = False
 
@@ -702,7 +745,7 @@ class ServerData:
 				self.inc_minutes(meetings_missed)
 			
 			# add the meeting to the weekly meetings list
-			self.add_weekly_meeting(meeting, save=False)
+			await self.add_weekly_meeting(meeting, save=False)
 		
 		# if there were any changes to the list while reading it, save the new list
 		if update:
@@ -767,7 +810,7 @@ class ServerData:
 				self.save_minutes()
 	
 	# reads data from th birthdays file, stores it in this object, and updates the file if needed
-	def __read_bdays(self):
+	async def __read_bdays(self):
 		# flag if the list was updated while reading it
 		update = False
 
@@ -802,7 +845,7 @@ class ServerData:
 			
 			# construct the bday object and add it to the list in order
 			bday = BDay(date, name)
-			self.add_bday(bday, save=False)
+			await self.add_bday(bday, save=False)
 		
 		# if there were any changes to the list while reading it, save the new list
 		if update:
@@ -855,7 +898,7 @@ async def on_ready():
 
 	# sets up and starts running the bot for each server it's in
 	for server in client.guilds:
-		server_data[server] = ServerData(server)
+		server_data[server] = await ServerData.create_ServerData(server)
 	
 	# prints message that the bot is done setting up
 	print(datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]"), f"{sys.argv[0]}:", "Bot is running")
@@ -864,7 +907,7 @@ async def on_ready():
 @client.event
 async def on_guild_join(server):
 	if len(server_data) <= 100:
-		server_data[server] = ServerData(server)
+		server_data[server] = await ServerData.create_ServerData(server)
 	else:
 		channel = ServerData.find_first_message_channel(server)
 		if channel is not None:
@@ -875,6 +918,12 @@ async def on_guild_join(server):
 			message += 'Leaving server...'
 			channel.send(message)
 		await server.leave()
+
+########################################################################################################################
+#
+# discord event updates
+#
+########################################################################################################################
 
 # removes all of a server's data when the bot leaves a server
 @client.event
@@ -888,6 +937,29 @@ async def on_guild_remove(server):
 		
 		# deletes the server's data from ram
 		server_data.pop(server)
+
+# finds a new alert channel for a server if the current alert channel for a server was deleted
+@client.event
+async def on_guild_channel_delete(channel):
+	# update the server object that is being stored in memory
+	server_data[channel.guild].server = channel.guild
+	# if the channel that was deleted is the server's alert channel
+	if server_data[channel.guild].alert_channel == channel:
+		# set the alert channel to the first text channel that the bot can send messages in
+		server_data[channel.guild].reset_alert_channel(channel.guild)
+
+# finds a new alert channel for a server if the current alert channel doesn't give the bot permission to send messages anymore
+@client.event
+async def on_guild_channel_update(before, after):
+	# update the server object that is being stored in memory
+	server_data[before.guild].server = after.guild
+	# if the channel that was updated is the server's alert channel
+	if server_data[before.guild].alert_channel == before:
+		channel_perms = server_data[before.guild].alert_channel.permissions_for(after.guild.me)
+		# if the bot doesn't have permission to send messages in the alert channel anymore
+		if not channel_perms.send_messages:
+			# set the alert channel to the first text channel that the bot can send messages in
+			server_data[before.guild].reset_alert_channel(after.guild)
 
 ########################################################################################################################
 #
@@ -1261,7 +1333,7 @@ async def add_command(message, command):
 			# add meeting to list
 
 			# if the meeting time is successfully added to the list in order and is not a duplicate
-			if server_data[message.guild].add_meeting(meeting):
+			if await server_data[message.guild].add_meeting(meeting):
 				await react_with_check(message)
 			else:
 				await react_with_x(message)
@@ -1310,7 +1382,7 @@ async def add_command(message, command):
 			# add day and time to list
 
 			# if the meeting time is successfully added to the list in order and is not a duplicate
-			if server_data[message.guild].add_weekly_meeting(meeting):
+			if await server_data[message.guild].add_weekly_meeting(meeting):
 				await react_with_check(message)
 			else:
 				await react_with_x(message)
@@ -1351,7 +1423,7 @@ async def add_command(message, command):
 			# create bday object
 			bday = BDay(meeting, ' '.join(command[5:]))
 			# if the bday was successfully added to the bday list
-			if server_data[message.guild].add_bday(bday):
+			if await server_data[message.guild].add_bday(bday):
 				await react_with_check(message)
 			# if the bday is a duplicate (same name and date as an existing one)
 			else:
@@ -1599,34 +1671,36 @@ async def dutyorder_command(message):
 
 # handles the alert command that sets the channel that people get alerted about meetings and bdays in
 async def alert_command(message, command):
-	channel_perms = message.channel.permissions_for(message.guild.me)
-	# if the bot has permission to send messages in the channel of the message
-	if channel_perms.send_messages:
-		# if the command has an argument
-		if len(command) > 1:
-			# set the argument to lowercase to make it easier to compare
-			command[1] = command[1].lower()
-			# if the command follows the format "alert here"
-			if command[1] == 'here':
-				# set the alert channel for the server to the one that the command was sent in
-				server_data[message.guild].alert_channel = message.channel
+	# if the command has an argument
+	if len(command) > 1:
+		# set the argument to lowercase to make it easier to compare
+		command[1] = command[1].lower()
+		# if the command follows the format "alert here"
+		if command[1] == 'here':
+			# set the alert channel for the server to the one that the command was sent in
+			if server_data[message.guild].set_alert_channel(message.channel):
 				await react_with_check(message)
-			# if the command follows the format "alert channel"
-			elif command[1] == 'channel':
+			else:
+				await react_with_check(message)
+		# if the command follows the format "alert channel"
+		elif command[1] == 'channel':
+			channel_perms = message.channel.permissions_for(message.guild.me)
+			# if the bot has permission to send messages in the channel of the message
+			if channel_perms.send_messages:
 				# if the bot doesn't have an alert channel
-				if server_data[message.guild].alert_channel is None:
+				if server_data[message.guild].alert_channel not in message.guild.text_channels:
 					# look for one again
 					server_data[message.guild].alert_channel = ServerData.find_first_message_server(message.guild)
 					# if the bot still can't find an alert channel
 					if server_data[message.guild].alert_channel is None:
 						await react_with_x(message)
 						return
-				
+
 				# reply with the bot's alert channel
 				reply = f'<#{server_data[message.guild].alert_channel.id}>'
 				await safe_reply(message, reply)
-		else:
-			await react_with_x(message)
+			else:
+				await react_with_x(message)
 	else:
 		await react_with_x(message)
 
