@@ -8,6 +8,8 @@ import shutil
 # used for storing and using date and time information
 import datetime
 from zoneinfo import ZoneInfo
+# used for creating coroutine tasks so the bot can loop to check for time without freezing itself
+import asyncio
 
 ########################################################################################################################
 #
@@ -33,6 +35,9 @@ mobile_prefix = ""
 # used for keeping track of each server's meeting / dutyorders etc.
 # maps a discord guild object to a ServerData object
 server_data = {}
+
+# maximum number of characters that can be sent in a discord message
+max_message_len = 2000
 
 # timezone that the bot is running in (change this yourself if you want the bot to use another time zone)
 timezone = ZoneInfo(key='US/Pacific')
@@ -295,22 +300,24 @@ class ServerData:
 		await data.__read_all()
 		return data
 	
-	# DO NOT USE THIS TO CONSTRUCT A SERVERDATA OBJECT! USE THE FUNCTION ABOVE INSTEAD!
+	# DO NOT USE THIS TO CONSTRUCT A SERVERDATA OBJECT! USE THE create_ServerData() FUNCTION INSTEAD!
 	# THIS CONSTRUCTOR DOES NOT READ THE DATA FILES FOR ITSELF BECAUSE THE FUNCTIONS THAT DO THAT NEED TO BE ASYNC!
 	def __init__(self, server):
 		# initialize fields
 		self.server = server
 		self.meetings = []
-		self.soon_meeting_index = 0
+		self.meeting_index = 0
+		self.meeting_soon_loop = None
+		self.meeting_now_loop = None
 		self.weekly_meetings = [] # for datetime objects
 		self.display_weekly_meetings = [] # for WeeklyMeeting objects
-		self.soon_weekly_meeting_index = 0
+		self.weekly_meeting_index = 0
+		self.weekly_meeting_soon_loop = None
+		self.weekly_meeting_now_loop = None
 		self.agenda_order = []
 		self.agenda_index = 0
 		self.minutes_order = []
 		self.minutes_index = 0
-		self.next_meeting = None
-		self.next_weekly_meeting = None
 		# set the meeting / bday alert channel to the first channel that the bot has message sending permissions in
 		self.alert_channel = ServerData.find_first_message_channel(server)
 		self.bdays = []
@@ -384,7 +391,28 @@ class ServerData:
 			return False
 		# if the meeting time wasn't a duplicate
 		else:
+			# set the meetings list to the new list
 			self.meetings = l
+			# get the index of the new meeting time in the list
+			index = self.meetings.index(time)
+			if index == self.meeting_index:
+				# restart the meeting soon loop
+				await self.__end_loop(self.meeting_soon_loop)
+				await self.__start_meeting_soon_loop()
+			elif index == 0:
+				# end the meeting now loop
+				await self.__end_loop(self.meeting_now_loop)
+				# send a meeting soon alert and readjust the meeting index
+				temp_index = self.meeting_index + 1
+				self.meeting_index = index
+				await self.__send_meeting_soon_alert()
+				self.meeting_index = temp_index
+				self.__save_meetings()
+				# restart the meeting now loop
+				await self.__start_meeting_now_loop()
+			elif index < self.meeting_index:
+				# send a meeting soon alert and readjust the meeting index
+				await self.__send_meeting_soon_alert()
 		
 		# saves all of the meetings to the server's meetings file
 		if save:
@@ -475,7 +503,7 @@ class ServerData:
 	
 	# removes meetings from the server's list of meetings given a list of arguments of the meetings' numbers
 	# returns true if all of the meetings were successfully removed, returns false if any of the meeting numbers wasn't valid
-	def remove_meetings(self, meeting_numbers: list, save: bool = True) -> bool:
+	async def remove_meetings(self, meeting_numbers: list, save: bool = True) -> bool:
 		meeting_indexes = []
 		# loop through each argument
 		for arg in meeting_numbers:
@@ -483,8 +511,8 @@ class ServerData:
 			if arg.isnumeric():
 				# turn the argument into a number
 				index = int(arg)
-				# if the number is between 1 and the last weekly meeting number
-				if index >= 1 and index  <= len(self.meetings):
+				# if the number is between 1 and the last weekly meeting number, and that index hasn't already been inputted
+				if index >= 1 and index  <= len(self.meetings) and index not in meeting_indexes:
 					# add that number to a list of indexes to remove
 					meeting_indexes.append(index)
 					continue
@@ -492,11 +520,39 @@ class ServerData:
 			# if any of the arguments aren't valid
 			return False
 		
+		restart_now_loop = False
+		# the soonest meeting is being removed
+		if 0 in meeting_indexes:
+			# end the meeting now loop and set a flag to restart it later
+			await self.__end_loop(self.meeting_now_loop)
+			restart_now_loop = True
+		
+		restart_soon_loop = False
+		# if the meeting at the meeting index is being removed
+		if self.meeting_index in meeting_indexes:
+			# end the meeting soon loop and set a flag to restart it later
+			await self.__end_loop(self.meeting_soon_loop)
+			restart_soon_loop = True
+		
 		# sort the list of indexes in reverse order because the right indexes will change while they're being removed if they're iterated through ascending order
 		meeting_indexes.sort(reverse=True)
 		# remove each meeting from the list in reverse order
 		for i in meeting_indexes:
-			self.meetings.pop(i - 1)
+			# calculate the actual index
+			index = i - 1
+			# remove the meeting from the list
+			self.meetings = self.meetings[:index] + self.meetings[i:]
+			# if the index of the meeting is less than the meeting index, decrement the meeting index
+			if index < self.meeting_index:
+				self.adjust_meeting_index(-1)
+		
+		# if the meeting now loop was stopped, restart it
+		if restart_now_loop:
+			await self.__start_meeting_now_loop()
+		
+		# if the meeting soon loop was stopped, restart it
+		if restart_soon_loop:
+			await self.__start_meeting_soon_loop()
 		
 		# saves all of the remaining meetings to the server's meetings file
 		if save:
@@ -514,8 +570,8 @@ class ServerData:
 			if arg.isnumeric():
 				# turn the argument into a number
 				index = int(arg)
-				# if the number is between 1 and the last weekly meeting number
-				if index >= 1 and index  <= len(self.display_weekly_meetings):
+				# if the number is between 1 and the last weekly meeting number, and that index hasn't already been inputted
+				if index >= 1 and index  <= len(self.display_weekly_meetings) and index not in meeting_indexes:
 					# add that number to a list of indexes to remove
 					meeting_indexes.append(index)
 					continue
@@ -527,22 +583,55 @@ class ServerData:
 		meeting_indexes.sort(reverse=True)
 		# remove each meeting from both lists in reverse order
 		for i in meeting_indexes:
+			# calculate the actual index
+			index = i - 1
 			try:
 				# find the index of the corresponding datetime object to this WeeklyMeeting object in the other list
-				index = self.weekly_meetings.index(self.display_weekly_meetings[i - 1])
-				# pop the datetime object from its list
-				self.weekly_meetings.pop(index)
+				other_index = self.weekly_meetings.index(self.display_weekly_meetings[index])
+				# remove the datetime object from its list
+				self.weekly_meetings = self.weekly_meetings[:other_index] + self.weekly_meetings[other_index+1:]
+				# if the index of the datetime is less than the weekly meeting index and, decrement the weekly meeting index
+				if other_index < self.weekly_meeting_index:
+					self.adjust_weekly_meeting_index(-1)
 			except:
 				# just ignore it if it can't find the corresponding object since it's already not there lol
 				pass
 			# pop the WeeklyMeeting object from its list
-			self.display_weekly_meetings.pop(i - 1)
+			self.display_weekly_meetings = self.display_weekly_meetings[:index] + self.display_weekly_meetings[i:]
 		
 		# saves all of the remaining meetings to the server's meetings file
 		if save:
 			self.__save_weekly_meetings()
 		
 		return True
+	
+	# adds i to the meeting index (default -1) and keeps the index within range
+	def adjust_meeting_index(self, i: int = -1, save: bool = True):
+		self.meeting_index += i
+		# if the meeting index went below 0, set it back to 0
+		if self.meeting_index < 0:
+			self.meeting_index = 0
+		# if the meeting index went above the length of the meeting list, set it back to the length of the meeting list
+		elif self.meeting_index > len(self.meetings):
+			self.meeting_index = len(self.meetings)
+		
+		# saves the meeting data
+		if save:
+			self.__save_meetings()
+	
+	# adds i to the weekly meeting index (default -1) and keeps the index within range
+	def adjust_weekly_meeting_index(self, i: int = -1, save: bool = True):
+		self.weekly_meeting_index += i
+		# if the weekly meeting index went below 0, set it back to 0
+		if self.weekly_meeting_index < 0:
+			self.weekly_meeting_index = 0
+		# if the weekly meeting index went above the length of the weekly meeting list, set it back to the length of the weekly meeting list
+		elif self.weekly_meeting_index > len(self.weekly_meetings):
+			self.weekly_meeting_index = len(self.weekly_meetings)
+		
+		# saves the weekly meeting data
+		if save:
+			self.__save_weekly_meetings()
 	
 	# removes a birthday from the server's list of birthdays given a bday object
 	# returns true if the bday was found and removed, false if it wasn't
@@ -599,7 +688,7 @@ class ServerData:
 		# if the name is in the list
 		if name in self.agenda_order:
 			# set the index to that name's index
-			self.agenda_index = self.agenda_order.find(name)
+			self.agenda_index = self.agenda_order.index(name)
 			# saves the agenda order and index to the server folder
 			if save:
 				self.__save_agenda()
@@ -614,7 +703,7 @@ class ServerData:
 		# if the name is in the list
 		if name in self.minutes_order:
 			# set the index to that name's index
-			self.minutes_index = self.minutes_order.find(name)
+			self.minutes_index = self.minutes_order.index(name)
 			# saves the meeting minutes order and index to the server folder
 			if save:
 				self.__save_minutes()
@@ -645,19 +734,23 @@ class ServerData:
 	
 	# increases the agenda order index by i (default 1), loops back to the start if it's at the end
 	def inc_agenda(self, i: int = 1, save: bool = True):
-		self.agenda_index = (self.agenda_index + i) % len(self.agenda_order)
+		# if there is an agenda list
+		if len(self.agenda_order) > 0:
+			self.agenda_index = (self.agenda_index + i) % len(self.agenda_order)
 
-		# saves the agenda data
-		if save:
-			self.__save_agenda()
+			# saves the agenda data
+			if save:
+				self.__save_agenda()
 	
 	# increases the meeting minutes order index by i (default 1), loops back to the start if it's at the end
 	def inc_minutes(self, i: int = 1, save: bool = True):
-		self.minutes_index = (self.minutes_index + i) % len(self.minutes_order)
+		# if there is a meeting minutes list
+		if len(self.minutes_order) > 0:
+			self.minutes_index = (self.minutes_index + i) % len(self.minutes_order)
 
-		# saves the meeting minutes data
-		if save:
-			self.__save_minutes()
+			# saves the meeting minutes data
+			if save:
+				self.__save_minutes()
 	
 	# sets the alert channel for a server to the one that is inputted
 	# returns false if it can't be set to that channel, true if it was successfully set to it
@@ -710,8 +803,9 @@ class ServerData:
 		for meeting in self.meetings:
 			file_lines += meeting.strftime(ServerData.dtfstr + '\n')
 		
-		# write the dates to the meetings file
+		# write the meeting index and the datetimes to the meetings file
 		with open(self.meetings_path, 'w') as file:
+			file.write(f'{self.meeting_index}\n')
 			file.write(file_lines)
 	
 	# saves the weekly meetings list to the server's weekly meetings file
@@ -723,8 +817,9 @@ class ServerData:
 		for meeting in self.weekly_meetings:
 			file_lines += meeting.strftime(ServerData.dtfstr + '\n')
 		
-		# write the dates to the meetings file
+		# write the meeting index and the datetimes to the meetings file
 		with open(self.weekly_path, 'w') as file:
+			file.write(f'{self.weekly_meeting_index}\n')
 			file.write(file_lines)
 	
 	# saves the agenda order list and index to the server's agenda order file
@@ -804,29 +899,43 @@ class ServerData:
 		with open(self.meetings_path, 'r') as file:
 			lines = file.readlines()
 		
-		# get the current date and time
-		now = datetime.datetime.now(timezone)
-		# for each line that was read in the file
-		for line in lines:
-			# get the date and time of the meeting from the string
-			try:
-				meeting = datetime.datetime.strptime(line.strip(), ServerData.dtfstr)
-			# just do the next line if this one is wrong
-			except:
-				continue
-
-			# if the meeting time is in the future, add it to the server's meetings list
-			if meeting > now:
-				await self.add_meeting(meeting, save=False)
-			# if the meeting already happened, don't add it to the list and increment the minutes index
-			else:
-				# set the update flag to true so the bot will update the data in the file
-				update = True
-				self.inc_minutes()
-		
-		# if there were any changes to the list while reading it, save the new list
-		if update:
+		# if the file was empty
+		if len(lines) <= 0:
 			self.__save_meetings()
+		# if the file wasn't empty
+		else:
+			index = lines[0].strip()
+			# if the first line is a positive integer
+			if index.isnumeric():
+				# set the meeting index to the number on the first line
+				self.meeting_index = int(index)
+			# else let it stay as 0
+			
+			# get the current date and time
+			now = datetime.datetime.now(timezone)
+			# for each line that was read in the file
+			for line in lines[1:]:
+				# get the date and time of the meeting from the string
+				try:
+					meeting = datetime.datetime.strptime(line.strip(), ServerData.dtfstr)
+				# just do the next line if this one is wrong
+				except:
+					continue
+
+				# if the meeting time is in the future, add it to the server's meetings list
+				if meeting > now:
+					await self.add_meeting(meeting, save=False)
+				# if the meeting already happened, don't add it to the list and increment the minutes index
+				else:
+					# set the update flag to true so the bot will update the data in the file
+					update = True
+					# set the minutes to the next person and decrease the index
+					self.inc_minutes()
+					self.adjust_meeting_index(-1, save=False)
+			
+			# if there were any changes to the list while reading it, save the new list
+			if update:
+				self.__save_meetings()
 	
 	# reads data from the weekly meetings file, stores it in this object, and updates the file if needed
 	async def __read_weekly_meetings(self):
@@ -837,54 +946,66 @@ class ServerData:
 		with open(self.weekly_path, 'r') as file:
 			lines = file.readlines()
 		
-		# get the current date and time
-		now = datetime.datetime.now(timezone)
-		# for each line that was read in the file
-		for line in lines:
-			# get the date and time of the meeting from the string
-			try:
-				meeting = datetime.datetime.strptime(line.strip(), ServerData.dtfstr)
-			# just do the next line if this one is wrong
-			except:
-				print('here')
-				continue
-
-			# if the meeting time is in the past
-			if meeting < now:
-				# set the update flag to true so the bot will update the data in the file
-				update = True
-				# calculate how much time has passed since this meeting
-				delta = now - meeting
-				# calculate how many of these weekly meetings were missed
-				meetings_missed = delta.days // 7
-				delta_week_mod = delta.days % 7
-				# if today is the same weekday day as this weekly meeting
-				if delta_week_mod == 0:
-					today_meeting = meeting + delta
-					# if the meeting has already happened today
-					if today_meeting < now:
-						# make it so this weekly meeting will be stored as next week
-						delta_week_mod = 14
-					# if it hasn't happened yet today
-					else:
-						# don't include this meeting as being missed
-						meetings_missed -= 1
-				
-				# calculate how many days to add to the meeting to put it to the next weekly occurrence
-				delta = datetime.timedelta(days = delta.days + (7 - delta_week_mod))
-				print(delta.days % 7)
-				# add the days to the meeting time
-				meeting += delta
-				# increase the agenda and meeting minutes indexes for how many meetings were missed
-				self.inc_agenda(meetings_missed)
-				self.inc_minutes(meetings_missed)
-			
-			# add the meeting to the weekly meetings list
-			await self.add_weekly_meeting(meeting, save=False)
-		
-		# if there were any changes to the list while reading it, save the new list
-		if update:
+		# if the file was empty
+		if len(lines) <= 0:
 			self.__save_weekly_meetings()
+		# if the file wasn't empty
+		else:
+			index = lines[0].strip()
+			# if the first line is a positive integer
+			if index.isnumeric():
+				# set the meeting index to the number on the first line
+				self.weekly_meeting_index = int(index)
+			# else let it stay as 0
+			
+			# get the current date and time
+			now = datetime.datetime.now(timezone)
+			# for each line that was read in the file
+			for line in lines[1:]:
+				# get the date and time of the meeting from the string
+				try:
+					meeting = datetime.datetime.strptime(line.strip(), ServerData.dtfstr)
+				# just do the next line if this one is wrong
+				except:
+					continue
+
+				# if the meeting time is in the past
+				if meeting < now:
+					# set the update flag to true so the bot will update the data in the file
+					update = True
+					# calculate how much time has passed since this meeting
+					delta = now - meeting
+					# calculate how many of these weekly meetings were missed
+					meetings_missed = delta.days // 7
+					delta_week_mod = delta.days % 7
+					# if today is the same weekday day as this weekly meeting
+					if delta_week_mod == 0:
+						today_meeting = meeting + delta
+						# if the meeting has already happened today
+						if today_meeting < now:
+							# make it so this weekly meeting will be stored as next week
+							delta_week_mod = 14
+						# if it hasn't happened yet today
+						else:
+							# don't include this meeting as being missed
+							meetings_missed -= 1
+					
+					# calculate how many days to add to the meeting to put it to the next weekly occurrence
+					delta = datetime.timedelta(days = delta.days + (7 - delta_week_mod))
+					print(delta.days % 7)
+					# add the days to the meeting time
+					meeting += delta
+					# increase the agenda and meeting minutes indexes for how many meetings were missed and decrease the meetings index
+					self.inc_agenda(meetings_missed)
+					self.inc_minutes(meetings_missed)
+					self.adjust_weekly_meeting_index(-1, save=False)
+				
+				# add the meeting to the weekly meetings list
+				await self.add_weekly_meeting(meeting, save=False)
+			
+			# if there were any changes to the list while reading it, save the new list
+			if update:
+				self.__save_weekly_meetings()
 	
 	# reads data from the agenda order file, stores it in this object, and updates the file if needed
 	def __read_agenda(self):
@@ -1014,29 +1135,149 @@ class ServerData:
 	
 	###########################################################################
 	#
+	# alert functions
+	#
+	###########################################################################
+
+	# @s everyone to say that a meeting will be soon, what time it will be at, and who's on meeting minutes duty for it
+	# also adjusts the meeting index to put the next meeting on deck for being alerted about, and starts a meeting now loop if there isn't already one
+	async def __send_meeting_soon_alert(self):
+		# if this program is being run on windows
+		if sys.platform == 'win32':
+			message = self.meetings[self.meeting_index].strftime(f'@everyone **Meeting Soon at %#H:%M / %#I:%M %p {tzstr}**\n\n')
+		# if this program is being run on linux, mac os, or any other os
+		else:
+			message = self.meetings[self.meeting_index].strftime(f'@everyone **Meeting Soon at %-H:%M / %-I:%M %p {tzstr}**\n\n')
+		
+		# if there is a meeting minutes list
+		if len(self.minutes_order) > 0:
+			message += f'**Meeting Minutes Duty:** {self.minutes_order[self.minutes_index]}'
+		# if none of the message was sent
+		if not await safe_message(self.alert_channel, message):
+			# try finding a new alert channel and sending it there
+			self.reset_alert_channel(self.server)
+			safe_message(self.alert_channel, message)
+		
+		# increase the meeting index so the next meeting gets checked for
+		self.adjust_meeting_index(1)
+		# start a meeting now loop if there isn't already one running
+		await self.__start_meeting_now_loop()
+	
+	# @s everyone to say that a weekly meeting will be soon, what time it will be at, and who's on meeting minutes duty for it
+	# also adjusts the weekly meeting index to put the next weekly meeting on deck for being alerted about, and starts a weekly meeting now loop if there isn't already one
+	async def __send_weekly_meeting_soon_alert():
+		pass
+
+	# @s everyone to say that a meeting has started and who's on meeting minutes duty for it
+	# also removes the first meeting from the meetings list and adjusts indexes adjust to the next meeting
+	async def __send_meeting_now_alert(self):
+		# constructs the message
+		message = '@everyone **Meeting Now**\n\n'
+		# if there is a meeting minutes list
+		if len(self.minutes_order) > 0:
+			message += f'**Meeting Minutes Duty:** {self.minutes_order[self.minutes_index]}'
+		
+		# if none of the message was sent
+		if not await safe_message(self.alert_channel, message):
+			# try finding a new alert channel and sending it there
+			self.reset_alert_channel(self.server)
+			safe_message(self.alert_channel, message)
+		
+		# remove the first meeting from the list
+		self.meetings = self.meetings[1:]
+		# go to the next person on meeting minutes duty
+		self.inc_minutes()
+		# decrease the meeting index to account for the pop
+		self.adjust_meeting_index(-1)
+	
+	# @s everyone to say that a weekly meeting has started and who's on meeting minutes duty for it
+	# also moves the first meeting in the weekly meeting list to the back of the list by adjusting it to be 1 week later
+	async def __send_weekly_meeting_now_alert():
+		pass
+	
+	###########################################################################
+	#
+	# loop control functions
+	#
+	###########################################################################
+
+	# creates a new async task for the meeting soon loop if there isn't already one currently running
+	async def __start_meeting_soon_loop(self):
+		if self.meeting_soon_loop is None or self.meeting_soon_loop.cancelled() or self.meeting_soon_loop.done():
+			self.meeting_soon_loop = client.loop.create_task(self.__meeting_soon_loop())
+
+	# creates a new async task for the weekly meeting soon loop if there isn't already one currently running
+	async def __start_weekly_meeting_soon_loop(self):
+		pass
+
+	# creates a new async task for the meeting now loop if there isn't already one currently running
+	async def __start_meeting_now_loop(self):
+		if self.meeting_now_loop is None or self.meeting_now_loop.cancelled() or self.meeting_now_loop.done():
+			self.meeting_now_loop = client.loop.create_task(self.__meeting_now_loop())
+	
+	# creates a new async task for the weekly meeting now loop if there isn't already one currently running
+	async def __start_weekly_meeting_now_loop(self):
+		pass
+
+	# creates a new async task that says happy birthday on peoples' birthdays
+	async def __start_bday_loop(self):
+		pass
+
+	# stops an async task from running if it currently is running
+	async def __end_loop(self, loop):
+		if loop is not None and not loop.cancelled() and not loop.done():
+			loop.cancel()
+
+	###########################################################################
+	#
 	# time check loop functions
 	#
 	###########################################################################
 
 	# gives warnings when a meeting is in 30 minutes
 	async def __meeting_soon_loop(self):
-		return
+		delta_30min = datetime.timedelta(minutes = 30)
+		# while there are meetings left in the list to check for
+		while self.meeting_index < len(self.meetings):
+			# get the current time
+			now = datetime.datetime.now(timezone)
+			# get the time of 30 minutes before the index meeting
+			alert_time = self.meetings[self.meeting_index] - delta_30min
+			# calculate how many seconds to wait from now until 30 minutes before the index meeting
+			wait_time = (alert_time - now).total_seconds()
+			# if the meeting is more than 30 minutes away from now
+			if wait_time > 0:
+				# wait until 30 minutes before the index meeting
+				await asyncio.sleep(wait_time)
+			# send an alert about the meeting being soon
+			await self.__send_meeting_soon_alert()
 	
 	# gives warnings when a weekly meeting is in 30 minutes
 	async def __weekly_meeting_soon_loop(self):
-		return
+		pass
 	
 	# gives alerts when a meeting is starting
 	async def __meeting_now_loop(self):
-		return
+		# while there are still meetings in the list that have already had a soon alert go out
+		while len(self.meetings[:self.meeting_index]) > 0:
+			# get the current time
+			now = datetime.datetime.now(timezone)
+			# calculate how many seconds to wait from now until the next meeting
+			wait_time = (self.meetings[0] - now).total_seconds()
+			# if the next meeting hasn't started yet
+			if wait_time > 0:
+				# wait until the meeting starts
+				await asyncio.sleep(wait_time)
+			# send an alert about the meeting starting
+			await self.__send_meeting_now_alert()
 	
 	# gives alerts when a weekly meeting is starting
 	async def __weekly_meeting_now_loop(self):
-		return
+		pass
 	
 	# gives alerts at 8:00 am when it's someone's bday
 	async def __bday_alert_loop(self):
-		return
+		pass
 
 ########################################################################################################################
 #
@@ -1074,7 +1315,7 @@ async def on_guild_join(server):
 		if channel is not None:
 			message = f'I am already in my maximum amount of servers ({ServerData.max_servers}). '
 			if contact_info != '':
-				message += f'Contact my owner if you wish to reserve a spot for your server with the me ({contact_info}). '
+				message += f'Contact my admin if you wish to reserve a spot for your server with the me ({contact_info}). '
 				message += 'You can also visit the repository for my code for more info(https://github.com/ChandlerJayCalkins/Capstone-Meeting-Bot). '
 			message += 'Leaving server...'
 			channel.send(message)
@@ -1430,7 +1671,7 @@ async def help_command(message, command = ''):
 
 			# if the bot runner has supplied contact info to refer to
 			if contact_info != '':
-				reply += f'Contact my owner if you are having problems ({contact_info}).\n'
+				reply += f'Contact my admin if you are having problems ({contact_info}).\n'
 			reply += 'If you want more info, visit the repository for my code at https://github.com/ChandlerJayCalkins/Capstone-Meeting-Bot !'
 			
 			await safe_reply(message, reply)
@@ -1550,10 +1791,10 @@ async def add_command(message, command):
 			if year is None:
 				if valid_date(day, month):
 					now = datetime.datetime.now(timezone)
-					meeting = datetime.datetime(now.year, month, day, hour=hour, minute=minute, tzinfo=timezone)
-					# if the meeting date is before now, increment it by a year
-					if meeting < now:
-						meeting = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute, tzinfo=timezone)
+					bday = datetime.datetime(now.year, month, day, hour=hour, minute=minute, tzinfo=timezone)
+					# if the meeting date is before today, increment it by a year
+					if bday.month < now.month or (bday.month == now.month and bday.day < now.day):
+						bday = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute, tzinfo=timezone)
 				else:
 					await react_with_x(message)
 					return
@@ -1563,7 +1804,7 @@ async def add_command(message, command):
 				return
 			
 			# create bday object
-			bday = BDay(meeting, ' '.join(command[5:]))
+			bday = BDay(bday, ' '.join(command[5:]))
 			# if the bday was successfully added to the bday list
 			if await server_data[message.guild].add_bday(bday):
 				await react_with_check(message)
@@ -1582,7 +1823,7 @@ async def remove_command(message, command):
 		# if the command follows the format "remove meeting(s) # # # ..."
 		if len(command) > 2 and (command[1].lower() == 'meeting' or command[1].lower() == 'meetings'):
 			# remove the meetings with the inputted numbers if all of the inputted numbers are valid
-			if server_data[message.guild].remove_meetings(command[2:]):
+			if await server_data[message.guild].remove_meetings(command[2:]):
 				await react_with_check(message)
 			# if any of the inputted numbers are not valid
 			else:
@@ -1892,9 +2133,6 @@ def bin_insert(l: list, obj, low = 0, high=None, no_dupes=False):
 			else:
 				# cut the check to the upper half of the remaining list
 				low = mid + 1
-		
-		# return the new list with obj inserted in its sorted position
-		return l[:low] + [obj] + l[low:]
 	# if duplicates are allowed
 	else:
 		# while the index to insert into hasn't been found yet
@@ -1908,8 +2146,8 @@ def bin_insert(l: list, obj, low = 0, high=None, no_dupes=False):
 			else:
 				low = mid + 1
 			
-		# return the new list with obj inserted in its sorted position
-		return l[:low] + [obj] + l[low:]
+	# return the new list with obj inserted in its sorted position
+	return l[:low] + [obj] + l[low:]
 
 # makes the bot react to a message with a checkmark emoji if it's able to
 async def react_with_check(message):
@@ -1928,7 +2166,6 @@ async def safe_reply(message, reply: str):
 	channel_perms = message.channel.permissions_for(message.guild.me)
 	# if the bot has permission to send messages in the channel of the message
 	if channel_perms.send_messages:
-		max_message_len = 2000
 		# while the reply is too long to send, find a split point before the message limit and send the reply up to that point
 		while (len(reply) > max_message_len):
 			# strings to split the reply at before the message limit
@@ -1967,6 +2204,54 @@ async def safe_reply(message, reply: str):
 	# if the bot doesn't have permission to send messages in the channel of the message, react with an x
 	else:
 		await react_with_x(message)
+
+# sends a message in a channel and handles lack of permissions and character overflow
+# returns true if the bot had permission to send messages in this channel at the start of this function, false if it didn't
+async def safe_message(channel, message: str) -> bool:
+	channel_perms = channel.permissions_for(channel.guild.me)
+	# if the bot has permission to send messages in the channel of the message
+	if channel_perms.send_messages:
+		# while the reply is too long to send, find a split point before the message limit and send the reply up to that point
+		while (len(message) > max_message_len):
+			# strings to split the reply at before the message limit
+			split_strs = ["\n\n", "\n", " "]
+			# index of where the reply will be split
+			split_index = -1
+			# loop through each substring to get the index of the last instance of one of the strings in split_strs in the relpy before the max message length
+			for i in range(len(split_strs) + 1):
+				# if all of the strings in split_strs have been checked and none of them were found, set the split_index to the max message length
+				if i == len(split_strs):
+					split_index = max_message_len + 1
+				else:
+					# find the index of the last instance of a string in split_strs
+					split_index = message.rfind(split_strs[i], 0, max_message_len)
+					# if an instance of the string was found, use the index of that string as the split index
+					if split_index != -1:
+						split_index += 1
+						break
+			
+			channel_perms = channel.permissions_for(channel.guild.me)
+			# check to make sure the bot still has permission to send messages in this channel
+			if channel_perms.send_messages:
+				# send the part of the reply up to the split index
+				await message.message(message[:split_index])
+			# if it doesn't, then exit the loop
+			else:
+				break
+			# remove the part of the reply that was just sent
+			message = message[split_index:]
+		
+		channel_perms = channel.permissions_for(channel.guild.me)
+		# check to make sure the bot still has permission to send messages in this channel
+		if channel_perms.send_messages:
+			# send the remaining part of the reply that is less than the max message length
+			await channel.send(message)
+		
+		# return true if the bot had permission to send messages in this channel at the start of this function
+		return True
+	# if the bot doesn't have permission to send messages in the channel of the message
+	else:
+		return False
 
 # turns a string of the format Y/M/D or Y-M-D into a tuple of numbers (year, month, day)
 def str_to_date_nums(date: str):
