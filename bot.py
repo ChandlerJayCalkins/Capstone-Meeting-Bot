@@ -449,6 +449,26 @@ class ServerData:
 			# if the meeting time wasn't a duplicate
 			else:
 				self.weekly_meetings = l
+				# get the index of the new weekly meeting time in the list
+				index = self.weekly_meetings.index(time)
+				if index == self.weekly_meeting_index:
+					# restart the weekly meeting soon loop
+					await self.__end_loop(self.weekly_meeting_soon_loop)
+					await self.__start_weekly_meeting_soon_loop()
+				elif index == 0:
+					# end the weekly meeting now loop
+					await self.__end_loop(self.weekly_meeting_now_loop)
+					# send a weekly meeting soon alert and readjust the weekly meeting index
+					temp_index = self.weekly_meeting_index + 1
+					self.weekly_meeting_index = index
+					await self.__send_weekly_meeting_soon_alert()
+					self.weekly_meeting_index = temp_index
+					self.__save_weekly_meetings()
+					# restart the weekly meeting now loop
+					await self.__start_weekly_meeting_now_loop()
+				elif index < self.weekly_meeting_index:
+					# send a weekly meeting soon alert and readjust the meeting index
+					await self.__send_weekly_meeting_soon_alert()
 		# if the time parameter is a datetime, add it to the normal list first and then create a WeeklyMeeting object to add
 		elif type(time) is datetime.datetime:
 			# insert the meeting time into a new meetings list
@@ -459,6 +479,26 @@ class ServerData:
 			# if the meeting time wasn't a duplicate
 			else:
 				self.weekly_meetings = l
+				# get the index of the new weekly meeting time in the list
+				index = self.weekly_meetings.index(time)
+				if index == self.weekly_meeting_index:
+					# restart the weekly meeting soon loop
+					await self.__end_loop(self.weekly_meeting_soon_loop)
+					await self.__start_weekly_meeting_soon_loop()
+				elif index == 0:
+					# end the weekly meeting now loop
+					await self.__end_loop(self.weekly_meeting_now_loop)
+					# send a weekly meeting soon alert and readjust the weekly meeting index
+					temp_index = self.weekly_meeting_index + 1
+					self.weekly_meeting_index = index
+					await self.__send_weekly_meeting_soon_alert()
+					self.weekly_meeting_index = temp_index
+					self.__save_weekly_meetings()
+					# restart the weekly meeting now loop
+					await self.__start_weekly_meeting_now_loop()
+				elif index < self.weekly_meeting_index:
+					# send a weekly meeting soon alert and readjust the meeting index
+					await self.__send_weekly_meeting_soon_alert()
 			
 			# get a WeeklyMeeting object of this meeting time
 			weekly_time = WeeklyMeeting(time.weekday(), time.hour, time.minute)
@@ -515,7 +555,7 @@ class ServerData:
 				# if the number is between 1 and the last weekly meeting number, and that index hasn't already been inputted
 				if index >= 1 and index  <= len(self.meetings) and index not in meeting_indexes:
 					# add that number to a list of indexes to remove
-					meeting_indexes.append(index)
+					meeting_indexes.append(index-1)
 					continue
 			
 			# if any of the arguments aren't valid
@@ -539,12 +579,10 @@ class ServerData:
 		meeting_indexes.sort(reverse=True)
 		# remove each meeting from the list in reverse order
 		for i in meeting_indexes:
-			# calculate the actual index
-			index = i - 1
 			# remove the meeting from the list
-			self.meetings = self.meetings[:index] + self.meetings[i:]
+			self.meetings = self.meetings[:i] + self.meetings[i+1:]
 			# if the index of the meeting is less than the meeting index, decrement the meeting index
-			if index < self.meeting_index:
+			if i < self.meeting_index:
 				self.adjust_meeting_index(-1)
 		
 		# if the meeting now loop was stopped, restart it
@@ -563,8 +601,9 @@ class ServerData:
 	
 	# removes weekly meetings from the server's lists of weekly meetings given a list of arguments of the meetings' numbers
 	# returns true if all of the meetings were successfully removed, returns false if any of the meeting numbers wasn't valid
-	def remove_weekly_meetings(self, meeting_numbers: list, save: bool = True) -> bool:
+	async def remove_weekly_meetings(self, meeting_numbers: list, save: bool = True) -> bool:
 		meeting_indexes = []
+		other_meeting_indexes = []
 		# loop through each argument
 		for arg in meeting_numbers:
 			# if the argument is a positive integer
@@ -574,37 +613,79 @@ class ServerData:
 				# if the number is between 1 and the last weekly meeting number, and that index hasn't already been inputted
 				if index >= 1 and index  <= len(self.display_weekly_meetings) and index not in meeting_indexes:
 					# add that number to a list of indexes to remove
-					meeting_indexes.append(index)
+					meeting_indexes.append(index-1)
+					# try to find the index of the equivalent datetime object in the other weekly meeting list
+					try:
+						other_meeting_indexes.append(self.weekly_meetings.index(self.display_weekly_meetings[index-1]))
+					# if it can't find the equivalent object's index, then just ignore it since it's already not there lol
+					except:
+						pass
 					continue
 			
 			# if any of the arguments aren't valid
 			return False
 		
-		# sort the list of indexes in reverse order because the right indexes will change while they're being removed if they're iterated through ascending order
+		restart_now_loop = False
+		# the soonest meeting is being removed
+		if 0 in other_meeting_indexes:
+			# end the weekly meeting now loop and set a flag to restart it later
+			await self.__end_loop(self.weekly_meeting_now_loop)
+			restart_now_loop = True
+		
+		restart_soon_loop = False
+		# if the meeting at the meeting index is being removed
+		if self.meeting_index in other_meeting_indexes:
+			# end the weekly meeting soon loop and set a flag to restart it later
+			await self.__end_loop(self.weekly_meeting_soon_loop)
+			restart_soon_loop = True
+
+		# sort the lists of indexes in reverse order because the right indexes will change while they're being removed if they're iterated through ascending order
 		meeting_indexes.sort(reverse=True)
-		# remove each meeting from both lists in reverse order
+		other_meeting_indexes.sort(reverse=True)
+
+		# remove each meeting from the display list in reverse order
 		for i in meeting_indexes:
-			# calculate the actual index
-			index = i - 1
-			try:
-				# find the index of the corresponding datetime object to this WeeklyMeeting object in the other list
-				other_index = self.weekly_meetings.index(self.display_weekly_meetings[index])
-				# remove the datetime object from its list
-				self.weekly_meetings = self.weekly_meetings[:other_index] + self.weekly_meetings[other_index+1:]
-				# if the index of the datetime is less than the weekly meeting index and, decrement the weekly meeting index
-				if other_index < self.weekly_meeting_index:
-					self.adjust_weekly_meeting_index(-1)
-			except:
-				# just ignore it if it can't find the corresponding object since it's already not there lol
-				pass
 			# pop the WeeklyMeeting object from its list
-			self.display_weekly_meetings = self.display_weekly_meetings[:index] + self.display_weekly_meetings[i:]
+			self.display_weekly_meetings = self.display_weekly_meetings[:i] + self.display_weekly_meetings[i+1:]
+		
+		# remove each meeting from the datetime list in reverse order
+		for i in other_meeting_indexes:
+			# pop the datetime object from its list
+			self.weekly_meetings = self.weekly_meetings[:i] + self.weekly_meetings[i+1:]
+			# if a meeting before the weekly meeting index was removed, shift the weekly meeting index down too to stay aligned with the list
+			if i < self.weekly_meeting_index:
+				self.adjust_weekly_meeting_index(-1)
+		
+		# if the weekly meeting now loop was stopped, restart it
+		if restart_now_loop:
+			await self.__start_weekly_meeting_now_loop()
+		
+		# if the weekly meeting soon loop was stopped, restart it
+		if restart_soon_loop:
+			await self.__start_weekly_meeting_soon_loop()
 		
 		# saves all of the remaining meetings to the server's meetings file
 		if save:
 			self.__save_weekly_meetings()
 		
 		return True
+	
+	# removes a birthday from the server's list of birthdays given a bday object
+	# returns true if the bday was found and removed, false if it wasn't
+	async def remove_bday(self, bday: BDay, save: bool = True) -> bool:
+		# if the bday is in the list
+		if bday in self.bdays:
+			# remove it from the list and return true
+			index = self.bdays.index(bday)
+			self.bdays.pop(index)
+			# saves all of the birthdays to the server's bdays file
+			if save:
+				self.__save_bdays()
+			
+			return True
+		# if the bday is not in the list
+		else:
+			return False
 	
 	# adds i to the meeting index (default -1) and keeps the index within range
 	def adjust_meeting_index(self, i: int = -1, save: bool = True):
@@ -633,23 +714,6 @@ class ServerData:
 		# saves the weekly meeting data
 		if save:
 			self.__save_weekly_meetings()
-	
-	# removes a birthday from the server's list of birthdays given a bday object
-	# returns true if the bday was found and removed, false if it wasn't
-	def remove_bday(self, bday: BDay, save: bool = True) -> bool:
-		# if the bday is in the list
-		if bday in self.bdays:
-			# remove it from the list and return true
-			index = self.bdays.index(bday)
-			self.bdays.pop(index)
-			# saves all of the birthdays to the server's bdays file
-			if save:
-				self.__save_bdays()
-			
-			return True
-		# if the bday is not in the list
-		else:
-			return False
 	
 	# sets the agenda notetaking order to a given list of names
 	def set_agenda_order(self, names: list, save: bool = True) -> bool:
@@ -993,7 +1057,6 @@ class ServerData:
 					
 					# calculate how many days to add to the meeting to put it to the next weekly occurrence
 					delta = datetime.timedelta(days = delta.days + (7 - delta_week_mod))
-					print(delta.days % 7)
 					# add the days to the meeting time
 					meeting += delta
 					# increase the agenda and meeting minutes indexes for how many meetings were missed and decrease the meetings index
@@ -1153,6 +1216,7 @@ class ServerData:
 		# if there is a meeting minutes list
 		if len(self.minutes_order) > 0:
 			message += f'**Meeting Minutes Duty:** {self.minutes_order[self.minutes_index]}'
+		
 		# if none of the message was sent
 		if not await safe_message(self.alert_channel, message):
 			# try finding a new alert channel and sending it there
@@ -1166,8 +1230,32 @@ class ServerData:
 	
 	# @s everyone to say that a weekly meeting will be soon, what time it will be at, and who's on meeting minutes duty for it
 	# also adjusts the weekly meeting index to put the next weekly meeting on deck for being alerted about, and starts a weekly meeting now loop if there isn't already one
-	async def __send_weekly_meeting_soon_alert():
-		pass
+	async def __send_weekly_meeting_soon_alert(self):
+		# if this program is being run on windows
+		if sys.platform == 'win32':
+			message = self.weekly_meetings[self.weekly_meeting_index].strftime(f'@everyone **Weekly Meeting Soon at %#H:%M / %#I:%M %p {tzstr}**\n\n')
+		# if this program is being run on linux, mac os, or any other os
+		else:
+			message = self.weekly_meetings[self.weekly_meeting_index].strftime(f'@everyone **Weekly Meeting Soon at %-H:%M / %-I:%M %p {tzstr}**\n\n')
+		
+		# if there is an agenda list
+		if len(self.agenda_order) > 0:
+			message += f'**Agenda Duty:** {self.agenda_order[self.agenda_index]}\n\n'
+		
+		# if there is a meeting minutes list
+		if len(self.minutes_order) > 0:
+			message += f'**Meeting Minutes Duty:** {self.minutes_order[self.minutes_index]}'
+		
+		# if none of the message was sent
+		if not await safe_message(self.alert_channel, message):
+			# try finding a new alert channel and sending it there
+			self.reset_alert_channel(self.server)
+			safe_message(self.alert_channel, message)
+		
+		# increase the weekly meeting index so the next meeting gets checked for
+		self.adjust_weekly_meeting_index(1)
+		# start a weekly meeting now loop if there isn't already one running
+		await self.__start_weekly_meeting_now_loop()
 
 	# @s everyone to say that a meeting has started and who's on meeting minutes duty for it
 	# also removes the first meeting from the meetings list and adjusts indexes adjust to the next meeting
@@ -1186,19 +1274,56 @@ class ServerData:
 		
 		# remove the first meeting from the list
 		self.meetings = self.meetings[1:]
-		# go to the next person on meeting minutes duty
+		# go to the next person on agenda meeting minutes duty
 		self.inc_minutes()
 		# decrease the meeting index to account for the pop
 		self.adjust_meeting_index(-1)
 	
 	# @s everyone to say that a weekly meeting has started and who's on meeting minutes duty for it
 	# also moves the first meeting in the weekly meeting list to the back of the list by adjusting it to be 1 week later
-	async def __send_weekly_meeting_now_alert():
-		pass
+	async def __send_weekly_meeting_now_alert(self):
+		# constructs the message
+		message = '@everyone **Weekly Meeting Now**\n\n'
+
+		# if there is an agenda list
+		if len(self.agenda_order) > 0:
+			message += f'**Agenda Duty:** {self.agenda_order[self.agenda_index]}\n\n'
+
+		# if there is a meeting minutes list
+		if len(self.minutes_order) > 0:
+			message += f'**Meeting Minutes Duty:** {self.minutes_order[self.minutes_index]}'
+		
+		# if none of the message was sent
+		if not await safe_message(self.alert_channel, message):
+			# try finding a new alert channel and sending it there
+			self.reset_alert_channel(self.server)
+			safe_message(self.alert_channel, message)
+		
+		# move the meeting back by 7 days and put it at the back of the list
+		delta_week = datetime.timedelta(days = 7)
+		next_meeting = self.weekly_meetings[0] + delta_week
+		self.weekly_meetings = self.weekly_meetings[1:]
+		self.weekly_meetings.append(next_meeting)
+		# go to the next person on agenda and meeting minutes duty
+		self.inc_agenda()
+		self.inc_minutes()
+		# decrease the meeting index to account for the pop
+		self.adjust_weekly_meeting_index(-1)
 
 	# @s everyone to say happy birthday to someone and moves that birthday to the back of the list by adjusting it to be 1 year later
-	async def __send_bday_alert():
-		pass
+	async def __send_bday_alert(self):
+		# constructs the message
+		message = f'@everyone Happy birthday {self.bdays[0].name}!'
+
+		# if none of the message was sent
+		if not await safe_message(self.alert_channel, message):
+			# try finding a new alert channel and sending it there
+			self.reset_alert_channel(self.server)
+			safe_message(self.alert_channel, message)
+		
+		# move the birthday date back by 1 year and put it at the end of the list
+		self.bdays[0].date = datetime.datetime(self.bdays[0].date.year + 1, self.bdays[0].date.month, self.bdays[0].date.day, hour=self.bdays[0].date.hour, minute=self.bdays[0].date.minute)
+		self.bdays = self.bdays[1:].append(self.bdays[0])
 	
 	###########################################################################
 	#
@@ -1262,7 +1387,21 @@ class ServerData:
 	
 	# gives warnings when a weekly meeting is in 30 minutes
 	async def __weekly_meeting_soon_loop(self):
-		pass
+		delta_30min = datetime.timedelta(minutes = 30)
+		# while there are meetings left in the list to check for
+		while self.weekly_meeting_index < len(self.weekly_meetings):
+			# get the current time
+			now = datetime.datetime.now(timezone)
+			# get the time of 30 minutes before the index meeting
+			alert_time = self.weekly_meetings[self.weekly_meeting_index] - delta_30min
+			# calculate how many seconds to wait from now until 30 minutes before the index meeting
+			wait_time = (alert_time - now).total_seconds()
+			# if the meeting is more than 30 minutes away from now
+			if wait_time > 0:
+				# wait until 30 minutes before the index meeting
+				await asyncio.sleep(wait_time)
+			# send an alert about the meeting being soon
+			await self.__send_weekly_meeting_soon_alert()
 	
 	# gives alerts when a meeting is starting
 	async def __meeting_now_loop(self):
@@ -1281,7 +1420,18 @@ class ServerData:
 	
 	# gives alerts when a weekly meeting is starting
 	async def __weekly_meeting_now_loop(self):
-		pass
+		# while there are still meetings in the list that have already had a soon alert go out
+		while len(self.weekly_meetings[:self.weekly_meeting_index]) > 0:
+			# get the current time
+			now = datetime.datetime.now(timezone)
+			# calculate how many seconds to wait from now until the next meeting
+			wait_time = (self.weekly_meetings[0] - now).total_seconds()
+			# if the next meeting hasn't started yet
+			if wait_time > 0:
+				# wait until the meeting starts
+				await asyncio.sleep(wait_time)
+			# send an alert about the meeting starting
+			await self.__send_weekly_meeting_now_alert()
 	
 	# gives alerts at 8:00 am when it's someone's bday
 	async def __bday_loop(self):
@@ -1839,7 +1989,7 @@ async def remove_command(message, command):
 		# if the command follows the format "remove weekly meeting(s) # # # ..."
 		elif len(command) > 3 and command[1].lower() == 'weekly' and (command[2].lower() == 'meeting' or command[2].lower() == 'meetings'):
 			# remove the weekly meetings with the inputted numbers if all of the inputted numbers are valid
-			if server_data[message.guild].remove_weekly_meetings(command[3:]):
+			if await server_data[message.guild].remove_weekly_meetings(command[3:]):
 				await react_with_check(message)
 			# if any of the inputted numbers are not valid
 			else:
@@ -1890,7 +2040,7 @@ async def remove_command(message, command):
 			# create bday object
 			bday = BDay(meeting, ' '.join(command[5:]))
 			# if the bday was successfully removed from the bday list
-			if server_data[message.guild].remove_bday(bday):
+			if await server_data[message.guild].remove_bday(bday):
 				await react_with_check(message)
 			# if the bday wasn't found / successfully removed from the list
 			else:
