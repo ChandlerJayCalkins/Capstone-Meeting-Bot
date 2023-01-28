@@ -1322,6 +1322,7 @@ class ServerData:
 			safe_message(self.alert_channel, message)
 		
 		# move the birthday date back by 1 year and put it at the end of the list
+		# TODO: make it so the bot can handles birthdays on february 29th
 		self.bdays[0].date = datetime.datetime(self.bdays[0].date.year + 1, self.bdays[0].date.month, self.bdays[0].date.day, hour=self.bdays[0].date.hour, minute=self.bdays[0].date.minute)
 		self.bdays = self.bdays[1:].append(self.bdays[0])
 	
@@ -1817,6 +1818,7 @@ async def help_command(message, command = ''):
 			reply += '- I will show who is on agenda and meeting minutes duty every time I give a meeting alert.\n'
 			reply += '- I will increment to the next person on meeting minutes duty after every meeting.\n'
 			reply += '- I will increment to the next person on both agenda and meeting minutes duty after every weekly meeting.\n'
+			reply += '- I will say happy birthday to people at 8 am by default, unless you give me a birthday that\'s today and it\'s after 8 am!\n'
 			reply += f'- I only processes times in the timezone that I am running in (currently {tzstr}).\n\n'
 
 			reply += '**Maximum Number of:**\n'
