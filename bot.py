@@ -214,10 +214,13 @@ class BDay:
 	
 	# string caster
 	def __str__(self):
-		# Linux version:
-		# date_str = self.date.strftime('%b %-d')
-		# Windows version:
-		date_str = self.date.strftime('%b %#d')
+		# if this program is being run on windows
+		if sys.platform == 'win32':
+			date_str = self.date.strftime('%b %#d')
+		# if this program is being run on linux, mac os, or any other os
+		else:
+			date_str = self.date.strftime('%b %-d')
+		
 		bday_str = f'{self.name}: {date_str}'
 		return bday_str
 	
@@ -1661,14 +1664,13 @@ async def meetings_command(message):
 		else:
 			# display all of the meetings in a numbered list
 			for i in range(len(server_data[message.guild].meetings)):
-				# Why the actual fuck would you change the grammar of a damn language depending on the operating system
-				# What. The. Fuck.
-				# Who is responsible for making this function and how the fuck were they allowed to contribute to python in the first place
-				# What else has this individual / these individuals fucked up with this language
-				# Linux version:
-				# meeting_str = server_data[message.guild].meetings[i].strftime(f'%A %b %-d %Y at %-H:%M / %-I:%M %p {tzstr}')
-				# Windows version:
-				meeting_str = server_data[message.guild].meetings[i].strftime(f'%A %b %#d %Y at %#H:%M / %#I:%M %p {tzstr}')
+				# if this program is being run on windows
+				if sys.platform == 'win32':
+					meeting_str = server_data[message.guild].meetings[i].strftime(f'%A %b %#d %Y at %#H:%M / %#I:%M %p {tzstr}')
+				# if this program is being run on linux, mac os, or any other os
+				else:
+					meeting_str = server_data[message.guild].meetings[i].strftime(f'%A %b %-d %Y at %-H:%M / %-I:%M %p {tzstr}')
+				
 				reply += f'**{i+1}. {meeting_str}**\n\n'
 
 		reply += '```Weekly Meetings```\n'
