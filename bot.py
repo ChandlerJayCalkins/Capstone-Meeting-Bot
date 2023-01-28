@@ -321,6 +321,7 @@ class ServerData:
 		# set the meeting / bday alert channel to the first channel that the bot has message sending permissions in
 		self.alert_channel = ServerData.find_first_message_channel(server)
 		self.bdays = []
+		self.bday_loop = None
 
 		# create necessary folders and files if they don't already exist
 
@@ -1194,6 +1195,10 @@ class ServerData:
 	# also moves the first meeting in the weekly meeting list to the back of the list by adjusting it to be 1 week later
 	async def __send_weekly_meeting_now_alert():
 		pass
+
+	# @s everyone to say happy birthday to someone and moves that birthday to the back of the list by adjusting it to be 1 year later
+	async def __send_bday_alert():
+		pass
 	
 	###########################################################################
 	#
@@ -1208,7 +1213,8 @@ class ServerData:
 
 	# creates a new async task for the weekly meeting soon loop if there isn't already one currently running
 	async def __start_weekly_meeting_soon_loop(self):
-		pass
+		if self.weekly_meeting_soon_loop is None or self.weekly_meeting_soon_loop.cancelled() or self.weekly_meeting_soon_loop.done():
+			self.weekly_meeting_soon_loop = client.loop.create_task(self.__weekly_meeting_soon_loop())
 
 	# creates a new async task for the meeting now loop if there isn't already one currently running
 	async def __start_meeting_now_loop(self):
@@ -1217,11 +1223,13 @@ class ServerData:
 	
 	# creates a new async task for the weekly meeting now loop if there isn't already one currently running
 	async def __start_weekly_meeting_now_loop(self):
-		pass
+		if self.weekly_meeting_now_loop is None or self.weekly_meeting_now_loop.cancelled() or self.weekly_meeting_now_loop.done():
+			self.weekly_meeting_now_loop = client.loop.create_task(self.__weekly_meeting_now_loop())
 
 	# creates a new async task that says happy birthday on peoples' birthdays
 	async def __start_bday_loop(self):
-		pass
+		if self.bday_loop is None or self.bday_loop.cancelled() or self.bday_loop.done():
+			self.bday_loop = client.loop.create_task(self.__bday_loop())
 
 	# stops an async task from running if it currently is running
 	async def __end_loop(self, loop):
@@ -1276,7 +1284,7 @@ class ServerData:
 		pass
 	
 	# gives alerts at 8:00 am when it's someone's bday
-	async def __bday_alert_loop(self):
+	async def __bday_loop(self):
 		pass
 
 ########################################################################################################################
