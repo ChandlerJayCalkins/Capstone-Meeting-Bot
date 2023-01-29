@@ -212,10 +212,19 @@ class WeeklyMeeting:
 
 # class for storing bday dates and names
 class BDay:
+	# default time of day that the bot says happy birthday to people at
+	default_hour = 8
+	default_min = 0
 	# constructor
 	def __init__(self, date: datetime.date, name: str):
 		self.date = date
 		self.name = name
+		# if the bday is on a leap day, set a flag for that to true
+		if date.day == 29 and date.month == 2:
+			self.leap_day = True
+		# if not, then false
+		else:
+			self.leap_day = False
 	
 	# string caster
 	def __str__(self):
@@ -520,28 +529,6 @@ class ServerData:
 		
 		return True
 	
-	# adds a birthday to the bday list in sorted order with a binary search
-	# returns true if the bday was added to the list, false if a bday on the same day for the same name is already in the list
-	async def add_bday(self, bday: BDay, save: bool = True) -> bool:
-		# if the max list length has already been reached
-		if len(self.bdays) >= ServerData.max_bdays:
-			return False
-
-		# insert the meeting time into a new meetings list
-		l = bin_insert(self.bdays, bday, no_dupes=True)
-		# if the meeting time was a duplicate
-		if not l:
-			return False
-		# if the meeting time wasn't a duplicate
-		else:
-			self.bdays = l
-		
-		# saves all of the birthdays to the server's bdays file
-		if save:
-			self.__save_bdays()
-		
-		return True
-	
 	# removes meetings from the server's list of meetings given a list of arguments of the meetings' numbers
 	# returns true if all of the meetings were successfully removed, returns false if any of the meeting numbers wasn't valid
 	async def remove_meetings(self, meeting_numbers: list, save: bool = True) -> bool:
@@ -669,23 +656,6 @@ class ServerData:
 			self.__save_weekly_meetings()
 		
 		return True
-	
-	# removes a birthday from the server's list of birthdays given a bday object
-	# returns true if the bday was found and removed, false if it wasn't
-	async def remove_bday(self, bday: BDay, save: bool = True) -> bool:
-		# if the bday is in the list
-		if bday in self.bdays:
-			# remove it from the list and return true
-			index = self.bdays.index(bday)
-			self.bdays.pop(index)
-			# saves all of the birthdays to the server's bdays file
-			if save:
-				self.__save_bdays()
-			
-			return True
-		# if the bday is not in the list
-		else:
-			return False
 	
 	# adds i to the meeting index (default -1) and keeps the index within range
 	def adjust_meeting_index(self, i: int = -1, save: bool = True):
@@ -854,6 +824,63 @@ class ServerData:
 			# set the alert channel to the new one and save it
 			self.alert_channel = channel
 			self.__save_alert_channel()
+	
+	# adds a birthday to the bday list in sorted order with a binary search
+	# returns true if the bday was added to the list, false if a bday on the same day for the same name is already in the list
+	async def add_bday(self, bday: BDay, save: bool = True) -> bool:
+		# if the max list length has already been reached
+		if len(self.bdays) >= ServerData.max_bdays:
+			return False
+
+		# insert the meeting time into a new meetings list
+		l = bin_insert(self.bdays, bday, no_dupes=True)
+		# if the meeting time was a duplicate
+		if not l:
+			return False
+		# if the meeting time wasn't a duplicate
+		else:
+			self.bdays = l
+			# get the index of the bday that was just added to the list
+			index = self.bdays.index(bday)
+			# if the bday was added to the front of the list
+			if index == 0:
+				# restart the bday loop so the bot waits for the new soonest bday
+				await self.__end_loop(self.bday_loop)
+				await self.__start_bday_loop()
+		
+		# saves all of the birthdays to the server's bdays file
+		if save:
+			self.__save_bdays()
+		
+		return True
+	
+	# removes a birthday from the server's list of birthdays given a bday object
+	# returns true if the bday was found and removed, false if it wasn't
+	async def remove_bday(self, bday: BDay, save: bool = True) -> bool:
+		# if the bday is in the list
+		if bday in self.bdays:
+			# remove it from the list and return true
+			index = self.bdays.index(bday)
+			# if the soonest bday is being removed
+			if index == 0:
+				# stop the bday loop
+				await self.__end_loop(self.bday_loop)
+				# remove the bday
+				self.bdays = self.bdays[1:]
+				# restart the bday loop
+				await self.__start_bday_loop()
+			# otherwise just remove the bday
+			else:
+				self.bdays = self.bdays[:index] + self.bdays[index+1:]
+
+			# saves all of the birthdays to the server's bdays file
+			if save:
+				self.__save_bdays()
+			
+			return True
+		# if the bday is not in the list
+		else:
+			return False
 	
 	###########################################################################
 	#
@@ -1184,10 +1211,10 @@ class ServerData:
 			if date < now:
 				# set the update flag to true so the bot will update the data in the file
 				update = True
-				date.year = now.year
+				date = datetime.datetime(now.year, date.month, date.day, hour=date.hour, minute=date.minute, tzinfo=timezone)
 				# if the bday is still in the past when is has the same year as now, set it's year to next year
 				if date < now:
-					date.year += 1
+					date = datetime.datetime(now.year + 1, date.month, date.day, hour=date.hour, minute=date.minute, tzinfo=timezone)
 			
 			# construct the bday object and add it to the list in order
 			bday = BDay(date, name)
@@ -1322,9 +1349,39 @@ class ServerData:
 			safe_message(self.alert_channel, message)
 		
 		# move the birthday date back by 1 year and put it at the end of the list
-		# TODO: make it so the bot can handles birthdays on february 29th
-		self.bdays[0].date = datetime.datetime(self.bdays[0].date.year + 1, self.bdays[0].date.month, self.bdays[0].date.day, hour=self.bdays[0].date.hour, minute=self.bdays[0].date.minute)
-		self.bdays = self.bdays[1:].append(self.bdays[0])
+		try:
+			# if the birthday is on a leap day (feb 29)
+			if self.bdays[0].leap_day:
+				# try using the leap day for next year
+				day = 29
+			else:
+				day = self.bdays[0].date.day
+			
+			self.bdays[0].date = datetime.datetime(self.bdays[0].date.year + 1, self.bdays[0].date.month, day, hour=self.bdays[0].date.hour, minute=self.bdays[0].date.minute, tzinfo=timezone)
+			next_bday = self.bdays[0]
+			self.bdays = self.bdays[1:]
+			self.bdays.append(next_bday)
+		except:
+			# if the bday is on a leap day
+			# use feb 28th for this year instead and set the leap_day flag to true for the bday object
+			if self.bdays[0].day == 29 and self.bdays[0].month == 2:
+				now = datetime.datetime.now(timezone)
+				day = 28
+				bday = datetime.datetime(now.year, self.bdays[0].month, day, hour=BDay.default_hour, minute=BDay.default_min, tzinfo=timezone)
+				self.bdays[0].leap_day = True
+				# if the meeting date is before now, increment it by a year
+				if bday < now:
+					bday = datetime.datetime(now.year + 1, self.bdays[0].month, day, hour=BDay.default_hour, minute=BDay.default_min, tzinfo=timezone)
+				
+				next_bday = self.bdays[0]
+				self.bdays = self.bdays[1:]
+				self.bdays.append(next_bday)
+			# otherwise, the birthday's corrupted
+			else:
+				# forget about it
+				self.bdays = self.bdays[1:]
+		
+		self.__save_bdays()
 	
 	###########################################################################
 	#
@@ -1383,6 +1440,7 @@ class ServerData:
 			if wait_time > 0:
 				# wait until 30 minutes before the index meeting
 				await asyncio.sleep(wait_time)
+			
 			# send an alert about the meeting being soon
 			await self.__send_meeting_soon_alert()
 	
@@ -1401,6 +1459,7 @@ class ServerData:
 			if wait_time > 0:
 				# wait until 30 minutes before the index meeting
 				await asyncio.sleep(wait_time)
+			
 			# send an alert about the meeting being soon
 			await self.__send_weekly_meeting_soon_alert()
 	
@@ -1416,6 +1475,7 @@ class ServerData:
 			if wait_time > 0:
 				# wait until the meeting starts
 				await asyncio.sleep(wait_time)
+			
 			# send an alert about the meeting starting
 			await self.__send_meeting_now_alert()
 	
@@ -1431,12 +1491,25 @@ class ServerData:
 			if wait_time > 0:
 				# wait until the meeting starts
 				await asyncio.sleep(wait_time)
+			
 			# send an alert about the meeting starting
 			await self.__send_weekly_meeting_now_alert()
 	
 	# gives alerts at 8:00 am when it's someone's bday
 	async def __bday_loop(self):
-		pass
+		# while there are birthdays in the bday list
+		while len(self.bdays) > 0:
+			# get the current time
+			now = datetime.datetime.now(timezone)
+			# calculate how many seconds to wait from now until the next birthday
+			wait_time = (self.bdays[0].date - now).total_seconds()
+			# if it's not time to send an alert about the birthday yet
+			if wait_time > 0:
+				# wait until it's time to send a bday alert
+				await asyncio.sleep(wait_time)
+			
+			# say happy birthday!
+			await self.__send_bday_alert()
 
 ########################################################################################################################
 #
@@ -1819,6 +1892,7 @@ async def help_command(message, command = ''):
 			reply += '- I will increment to the next person on meeting minutes duty after every meeting.\n'
 			reply += '- I will increment to the next person on both agenda and meeting minutes duty after every weekly meeting.\n'
 			reply += '- I will say happy birthday to people at 8 am by default, unless you give me a birthday that\'s today and it\'s after 8 am!\n'
+			reply += '- If you give me a birthday as february 29th, I will adjust it to february 28th on non-leap years automatically.\n'
 			reply += f'- I only processes times in the timezone that I am running in (currently {tzstr}).\n\n'
 
 			reply += '**Maximum Number of:**\n'
@@ -1874,20 +1948,23 @@ async def add_command(message, command):
 
 			# if the year wasn't inputted
 			if year is None:
-				if valid_date(day, month):
+				try:
 					now = datetime.datetime.now(timezone)
 					meeting = datetime.datetime(now.year, month, day, hour=hour, minute=minute, tzinfo=timezone)
 					# if the meeting date is before now, increment it by a year
 					if meeting < now:
 						meeting = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute, tzinfo=timezone)
-				else:
+				# if the date isn't valid
+				except:
 					await react_with_x(message)
 					return
 			# if a year was inputted
 			else:
-				if valid_date(day, month, year=year):
+				try:
 					meeting = datetime.datetime(year, month, day, hour=hour, minute=minute, tzinfo=timezone)
-					now = datetime.datetime.now(timezone)
+				# if the date isn't valid
+				except:
+					await react_with_x(message)
 			
 			# add meeting to list
 
@@ -1941,30 +2018,40 @@ async def add_command(message, command):
 			# put date_num variables into more recognizable variable names
 			year, month, day = date_nums
 
-			# construct datetime object
-
-			# time of the day that the bot will alert people about the birthday
-			hour = 8
-			minute = 0
-
 			# if the year wasn't inputted
 			if year is None:
-				if valid_date(day, month):
+				# create the bday object
+				try:
 					now = datetime.datetime.now(timezone)
-					bday = datetime.datetime(now.year, month, day, hour=hour, minute=minute, tzinfo=timezone)
+					bday = datetime.datetime(now.year, month, day, hour=BDay.default_hour, minute=BDay.default_min, tzinfo=timezone)
 					# if the meeting date is before today, increment it by a year
 					if bday.month < now.month or (bday.month == now.month and bday.day < now.day):
-						bday = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute, tzinfo=timezone)
-				else:
-					await react_with_x(message)
-					return
+						bday = datetime.datetime(now.year + 1, month, day, hour=BDay.default_hour, minute=BDay.default_min, tzinfo=timezone)
+					
+					# create bday object
+					bday = BDay(bday, ' '.join(command[5:]))
+				# if the date isn't valid
+				except:
+					# if the bday is on a leap day
+					# use feb 28th for this year instead and set the leap_day flag to true for the bday object
+					if day == 29 and month == 2:
+						day = 28
+						bday = datetime.datetime(now.year, month, day, hour=BDay.default_hour, minute=BDay.default_min, tzinfo=timezone)
+						# if the meeting date is before now, increment it by a year
+						if bday < now:
+							bday = datetime.datetime(now.year + 1, month, day, hour=BDay.default_hour, minute=BDay.default_min, tzinfo=timezone)
+						
+						# create bday object
+						bday = BDay(bday, ' '.join(command[5:]))
+						bday.leap_day = True
+					else:
+						await react_with_x(message)
+						return
 			# if a year was inputted
 			else:
 				await react_with_x(message)
 				return
 			
-			# create bday object
-			bday = BDay(bday, ' '.join(command[5:]))
 			# if the bday was successfully added to the bday list
 			if await server_data[message.guild].add_bday(bday):
 				await react_with_check(message)
@@ -2017,30 +2104,41 @@ async def remove_command(message, command):
 			# put date_num variables into more recognizable variable names
 			year, month, day = date_nums
 
-			# construct datetime object
-
-			# time of the day that the bot will alert people about the birthday
-			hour = 8
-			minute = 0
-
 			# if the year wasn't inputted
 			if year is None:
-				if valid_date(day, month):
-					now = datetime.datetime.now(timezone)
-					meeting = datetime.datetime(now.year, month, day, hour=hour, minute=minute, tzinfo=timezone)
+				# get the current time
+				now = datetime.datetime.now(timezone)
+				# construct the bday object
+				try:
+					bday = datetime.datetime(now.year, month, day, hour=BDay.default_hour, minute=BDay.default_min, tzinfo=timezone)
 					# if the meeting date is before now, increment it by a year
-					if meeting < now:
-						meeting = datetime.datetime(now.year + 1, month, day, hour=hour, minute=minute, tzinfo=timezone)
-				else:
-					await react_with_x(message)
-					return
+					if bday < now:
+						bday = datetime.datetime(now.year + 1, month, day, hour=BDay.default_hour, minute=BDay.default_min, tzinfo=timezone)
+					
+					# create bday object
+					bday = BDay(bday, ' '.join(command[5:]))
+				# if the date isn't valid
+				except:
+					# if the bday is on a leap day
+					# use feb 28th for this year instead and set the leap_day flag to true for the bday object
+					if day == 29 and month == 2:
+						day = 28
+						bday = datetime.datetime(now.year, month, day, hour=BDay.default_hour, minute=BDay.default_min, tzinfo=timezone)
+						# if the meeting date is before now, increment it by a year
+						if bday < now:
+							bday = datetime.datetime(now.year + 1, month, day, hour=BDay.default_hour, minute=BDay.default_min, tzinfo=timezone)
+						
+						# create bday object
+						bday = BDay(bday, ' '.join(command[5:]))
+						bday.leap_day = True
+					else:
+						await react_with_x(message)
+						return
 			# if a year was inputted
 			else:
 				await react_with_x(message)
 				return
 			
-			# create bday object
-			bday = BDay(meeting, ' '.join(command[5:]))
 			# if the bday was successfully removed from the bday list
 			if await server_data[message.guild].remove_bday(bday):
 				await react_with_check(message)
