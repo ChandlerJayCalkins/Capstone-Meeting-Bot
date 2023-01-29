@@ -2671,26 +2671,6 @@ def str_to_time_24hr(time: str):
 		# return none if the input was not valid
 		return None, None
 
-# returns if a set of integers are valid for construction of a date object
-def valid_date(day: int, month: int, year: int = datetime.MINYEAR) -> bool:
-	if year < datetime.MINYEAR or year > datetime.MAXYEAR:
-		return False
-	elif month < 1 or month > 12:
-		return False
-	elif day < 1:
-		return False
-	elif month == 1 or month == 3 or month == 5 or month == 7 or month == 8 or month == 10 or month == 12:
-		if day > 31:
-			return False
-	elif month == 2:
-		if day > 29:
-			return False
-	elif month == 4 or month == 6 or month == 9 or month == 11:
-		if day > 30:
-			return False
-	
-	return True
-
 ########################################################################################################################
 #
 # bot activation
