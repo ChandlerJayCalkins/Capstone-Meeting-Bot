@@ -288,6 +288,8 @@ class ServerData:
 	max_agenda_order = 50
 	max_minutes_order = 50
 	max_bdays = 50
+	# number of minutes before a meeting that the bot sends a meeting soon alert
+	soon_mins = 30
 	# file names for each type of data
 	meetings_file = 'meetings.lst'
 	weekly_file = 'weekly_meetings.lst'
@@ -1427,16 +1429,16 @@ class ServerData:
 
 	# gives warnings when a meeting is in 30 minutes
 	async def __meeting_soon_loop(self):
-		delta_30min = datetime.timedelta(minutes = 30)
+		delta_soon = datetime.timedelta(minutes = ServerData.soon_mins)
 		# while there are meetings left in the list to check for
 		while self.meeting_index < len(self.meetings):
 			# get the current time
 			now = datetime.datetime.now(timezone)
-			# get the time of 30 minutes before the index meeting
-			alert_time = self.meetings[self.meeting_index] - delta_30min
+			# get the soon time before the index meeting
+			alert_time = self.meetings[self.meeting_index] - delta_soon
 			# calculate how many seconds to wait from now until 30 minutes before the index meeting
 			wait_time = (alert_time - now).total_seconds()
-			# if the meeting is more than 30 minutes away from now
+			# if the meeting is more than soon_min minutes away from now
 			if wait_time > 0:
 				# wait until 30 minutes before the index meeting
 				await asyncio.sleep(wait_time)
@@ -1446,16 +1448,16 @@ class ServerData:
 	
 	# gives warnings when a weekly meeting is in 30 minutes
 	async def __weekly_meeting_soon_loop(self):
-		delta_30min = datetime.timedelta(minutes = 30)
+		delta_soon = datetime.timedelta(minutes = ServerData.soon_mins)
 		# while there are meetings left in the list to check for
 		while self.weekly_meeting_index < len(self.weekly_meetings):
 			# get the current time
 			now = datetime.datetime.now(timezone)
-			# get the time of 30 minutes before the index meeting
-			alert_time = self.weekly_meetings[self.weekly_meeting_index] - delta_30min
+			# get the soon time before the index meeting
+			alert_time = self.weekly_meetings[self.weekly_meeting_index] - delta_soon
 			# calculate how many seconds to wait from now until 30 minutes before the index meeting
 			wait_time = (alert_time - now).total_seconds()
-			# if the meeting is more than 30 minutes away from now
+			# if the meeting is more than soon_min minutes away from now
 			if wait_time > 0:
 				# wait until 30 minutes before the index meeting
 				await asyncio.sleep(wait_time)
