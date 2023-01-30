@@ -7,6 +7,8 @@ Works with python 3.11.
 **Link to use my instance of the bot in your server:**
 [https://discord.com/api/oauth2/authorize?client_id=1063270595367813251&permissions=274878040128&scope=bot](https://discord.com/api/oauth2/authorize?client_id=1063270595367813251&permissions=274878040128&scope=bot)
 
+Note: My bot is capped at joining 50 servers max, so if it is already in 50 servers it will immediately leave after joining yours.
+
 # Required 3rd Party Libraries
 
 ## discord.py
@@ -36,6 +38,11 @@ or, for voice support as well if you want (not required for this bot),
 Copy your discord bot's token and paste into a file called "`token.txt`" in the root directory of this repository (same folder / location as the code).
 Make sure the file has nothing else in it except the token.
 To create your own discord bot and get it's token, go to [the Discord Developer Portal](https://discord.com/developers/applications).
+
+# Default Values
+
+In [the code for the bot](/bot.py), be sure to configure the default values to your liking in each class that has them
+(like `max_servers` and `max_meetings` in the `ServerData` class and `default_hour` and `defaul_min` in the `BDay` class).
 
 # Contact Info
 
