@@ -1359,7 +1359,7 @@ class ServerData:
 			else:
 				day = self.bdays[0].date.day
 			
-			self.bdays[0].date = datetime.datetime(self.bdays[0].date.year + 1, self.bdays[0].date.month, day, hour=self.bdays[0].date.hour, minute=self.bdays[0].date.minute, tzinfo=timezone)
+			self.bdays[0].date = datetime.datetime(self.bdays[0].date.year + 1, self.bdays[0].date.month, day, hour=BDay.default_hour, minute=BDay.default_min, tzinfo=timezone)
 			next_bday = self.bdays[0]
 			self.bdays = self.bdays[1:]
 			self.bdays.append(next_bday)
