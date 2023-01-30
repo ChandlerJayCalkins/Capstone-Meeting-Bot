@@ -1250,7 +1250,7 @@ class ServerData:
 		if not await safe_message(self.alert_channel, message):
 			# try finding a new alert channel and sending it there
 			self.reset_alert_channel(self.server)
-			safe_message(self.alert_channel, message)
+			await safe_message(self.alert_channel, message)
 		
 		# increase the meeting index so the next meeting gets checked for
 		self.adjust_meeting_index(1)
@@ -1279,7 +1279,7 @@ class ServerData:
 		if not await safe_message(self.alert_channel, message):
 			# try finding a new alert channel and sending it there
 			self.reset_alert_channel(self.server)
-			safe_message(self.alert_channel, message)
+			await safe_message(self.alert_channel, message)
 		
 		# increase the weekly meeting index so the next meeting gets checked for
 		self.adjust_weekly_meeting_index(1)
@@ -1299,7 +1299,7 @@ class ServerData:
 		if not await safe_message(self.alert_channel, message):
 			# try finding a new alert channel and sending it there
 			self.reset_alert_channel(self.server)
-			safe_message(self.alert_channel, message)
+			await safe_message(self.alert_channel, message)
 		
 		# remove the first meeting from the list
 		self.meetings = self.meetings[1:]
@@ -1326,7 +1326,7 @@ class ServerData:
 		if not await safe_message(self.alert_channel, message):
 			# try finding a new alert channel and sending it there
 			self.reset_alert_channel(self.server)
-			safe_message(self.alert_channel, message)
+			await safe_message(self.alert_channel, message)
 		
 		# move the meeting back by 7 days and put it at the back of the list
 		delta_week = datetime.timedelta(days = 7)
@@ -1348,7 +1348,7 @@ class ServerData:
 		if not await safe_message(self.alert_channel, message):
 			# try finding a new alert channel and sending it there
 			self.reset_alert_channel(self.server)
-			safe_message(self.alert_channel, message)
+			await safe_message(self.alert_channel, message)
 		
 		# move the birthday date back by 1 year and put it at the end of the list
 		try:
