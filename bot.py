@@ -1393,27 +1393,27 @@ class ServerData:
 
 	# creates a new async task for the meeting soon loop if there isn't already one currently running
 	async def __start_meeting_soon_loop(self):
-		if self.meeting_soon_loop is None or self.meeting_soon_loop.cancelled() or self.meeting_soon_loop.done():
+		if self.meeting_soon_loop is None or self.meeting_soon_loop.cancelled() or self.meeting_soon_loop.done() or self.meeting_soon_loop.cancelling() > 0:
 			self.meeting_soon_loop = client.loop.create_task(self.__meeting_soon_loop())
 
 	# creates a new async task for the weekly meeting soon loop if there isn't already one currently running
 	async def __start_weekly_meeting_soon_loop(self):
-		if self.weekly_meeting_soon_loop is None or self.weekly_meeting_soon_loop.cancelled() or self.weekly_meeting_soon_loop.done():
+		if self.weekly_meeting_soon_loop is None or self.weekly_meeting_soon_loop.cancelled() or self.weekly_meeting_soon_loop.done() or self.weekly_meeting_soon_loop.cancelling() > 0:
 			self.weekly_meeting_soon_loop = client.loop.create_task(self.__weekly_meeting_soon_loop())
 
 	# creates a new async task for the meeting now loop if there isn't already one currently running
 	async def __start_meeting_now_loop(self):
-		if self.meeting_now_loop is None or self.meeting_now_loop.cancelled() or self.meeting_now_loop.done():
+		if self.meeting_now_loop is None or self.meeting_now_loop.cancelled() or self.meeting_now_loop.done() or self.meeting_now_loop.cancelling() > 0:
 			self.meeting_now_loop = client.loop.create_task(self.__meeting_now_loop())
 	
 	# creates a new async task for the weekly meeting now loop if there isn't already one currently running
 	async def __start_weekly_meeting_now_loop(self):
-		if self.weekly_meeting_now_loop is None or self.weekly_meeting_now_loop.cancelled() or self.weekly_meeting_now_loop.done():
+		if self.weekly_meeting_now_loop is None or self.weekly_meeting_now_loop.cancelled() or self.weekly_meeting_now_loop.done() or self.weekly_meeting_now_loop.cancelling() > 0:
 			self.weekly_meeting_now_loop = client.loop.create_task(self.__weekly_meeting_now_loop())
 
 	# creates a new async task that says happy birthday on peoples' birthdays
 	async def __start_bday_loop(self):
-		if self.bday_loop is None or self.bday_loop.cancelled() or self.bday_loop.done():
+		if self.bday_loop is None or self.bday_loop.cancelled() or self.bday_loop.done() or self.bday_loop.cancelling() > 0:
 			self.bday_loop = client.loop.create_task(self.__bday_loop())
 
 	# stops an async task from running if it currently is running
