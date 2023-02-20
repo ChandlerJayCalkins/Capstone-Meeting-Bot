@@ -2,7 +2,7 @@
 Code for a Discord bot that keeps track of Senior Engineering Capstone Design meetings, agenda and meeting minutes duty, and birthdays too lol.
 Built for engineering students at the University of Idaho.
 Brief instructions for how to set up and run your own bot with this code are below.
-Works with python 3.11.
+Works with python 3.
 
 **Link to use my instance of the bot in your server:**
 [https://discord.com/api/oauth2/authorize?client_id=1063270595367813251&permissions=274878040128&scope=bot](https://discord.com/api/oauth2/authorize?client_id=1063270595367813251&permissions=274878040128&scope=bot)
